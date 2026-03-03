@@ -1,0 +1,38 @@
+# Java / Spring Boot
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+backend/.classpath
+backend/.project
+backend/.settings/
+backend/bin/
+
+# Node / Vue
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env.local
+frontend/.env.*.local
+
+# IDE
+.idea/
+*.iml
+.vscode/settings.json
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Docker volumes
+docker/data/
+
+# Sensitive configs
+backend/src/main/resources/application-prod.yml
+.env
+
+# Templates upload
+templates/upload/
