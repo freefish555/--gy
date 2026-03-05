@@ -131,6 +131,9 @@ router.beforeEach(async (to, from, next) => {
   NProgress.start()
   const authStore = useAuthStore()
 
+  // 调试日志
+  console.log('[Router Guard]', to.fullPath, '| isLoggedIn:', authStore.isLoggedIn, '| token:', !!localStorage.getItem('token'))
+
   if (to.meta.requiresAuth === false) {
     if (authStore.isLoggedIn && to.name === 'Login') {
       next('/')
@@ -141,6 +144,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (!authStore.isLoggedIn) {
+    console.warn('[Router Guard] NOT logged in, redirect to login. localStorage token:', localStorage.getItem('token')?.substring(0, 20))
     next({ name: 'Login', query: { redirect: to.fullPath } })
     return
   }

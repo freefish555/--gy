@@ -16,7 +16,7 @@
         background-color="#001529"
         text-color="#b0b7c0"
         active-text-color="#ffffff"
-        router
+        @select="handleMenuSelect"
         class="sidebar-menu"
       >
         <!-- 项目管理 -->
@@ -218,6 +218,13 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const isCollapsed = ref(false)
+
+// 菜单导航（替代 el-menu 的 router prop，避免注入问题）
+function handleMenuSelect(index: string) {
+  if (index && index.startsWith('/')) {
+    router.push(index)
+  }
+}
 
 // 当前激活菜单
 const activeMenu = computed(() => route.path)

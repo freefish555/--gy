@@ -106,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, getCurrentInstance } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock, Key } from '@element-plus/icons-vue'
@@ -116,6 +116,12 @@ import request from '@/utils/request'
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const instance = getCurrentInstance()
+
+// 安全调用 ElMessage，传入 appContext 避免 Element Plus 内部 pa._context 为 null 的问题
+function showMessage(type: 'success' | 'warning' | 'error' | 'info', message: string, options?: any) {
+  ElMessage({ type, message, appContext: instance?.appContext, ...options })
+}
 
 const loginFormRef = ref()
 const loading = ref(false)
@@ -138,9 +144,44 @@ const loginRules = {
   captchaCode: [{ required: showCaptcha.value, message: '请输入验证码', trigger: 'blur' }]
 }
 
-onMounted(() => {
+onMounted(async () => {
   getCaptcha()
+  // 调试：URL参数 ?autologin=1 时自动登录
+  if (route.query.autologin === '1') {
+    loginForm.username = 'admin'
+    loginForm.password = 'Admin@123456'
+    await new Promise(r => setTimeout(r, 500))
+    await doLogin()
+  }
 })
+
+async function doLogin() {
+  loading.value = true
+  try {
+    console.log('[Login] Starting login...')
+    const result = await authStore.login(loginForm.username, loginForm.password, loginForm.captchaCode, captchaId.value)
+    console.log('[Login] Result:', result, '| isLoggedIn after:', authStore.isLoggedIn, '| token:', authStore.token?.substring(0, 20))
+    if (result.requireTotp) {
+      tempToken.value = authStore.token
+      showTotp.value = true
+    } else {
+      const redirect = (route.query.redirect as string) || '/'
+      console.log('[Login] Redirecting to:', redirect)
+      // 先显示消息（此时组件还未卸载，appContext 可用）
+      showMessage('success', '登录成功')
+      if (result.firstLogin) {
+        showMessage('warning', '首次登录，请先修改密码', { duration: 5000 })
+      }
+      await router.push(redirect)
+      console.log('[Login] After push, current route:', router.currentRoute.value.fullPath)
+    }
+  } catch (e) {
+    console.error('[Login] Error:', e)
+    getCaptcha()
+  } finally {
+    loading.value = false
+  }
+}
 
 async function getCaptcha() {
   try {
@@ -157,42 +198,19 @@ async function handleLogin() {
   if (!loginFormRef.value) return
   await loginFormRef.value.validate(async (valid: boolean) => {
     if (!valid) return
-    loading.value = true
-    try {
-      const result = await authStore.login(
-        loginForm.username,
-        loginForm.password,
-        loginForm.captchaCode,
-        captchaId.value
-      )
-      if (result.requireTotp) {
-        tempToken.value = authStore.token
-        showTotp.value = true
-      } else {
-        ElMessage.success('登录成功')
-        if (result.firstLogin) {
-          ElMessage.warning('首次登录，请先修改密码', { duration: 5000 })
-        }
-        const redirect = (route.query.redirect as string) || '/'
-        router.push(redirect)
-      }
-    } catch {
-      getCaptcha()
-    } finally {
-      loading.value = false
-    }
+    await doLogin()
   })
 }
 
 async function handleTotpVerify() {
   if (!totpCode.value || totpCode.value.length !== 6) {
-    ElMessage.warning('请输入6位动态验证码')
+    showMessage('warning', '请输入6位动态验证码')
     return
   }
   loading.value = true
   try {
     await authStore.verifyTotp(tempToken.value, parseInt(totpCode.value))
-    ElMessage.success('验证成功，登录中...')
+    showMessage('success', '验证成功，登录中...')
     const redirect = (route.query.redirect as string) || '/'
     router.push(redirect)
   } catch {

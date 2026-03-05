@@ -1,7 +1,5 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
-import { useAuthStore } from '@/store/auth'
-import router from '@/router'
 
 const request: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -9,7 +7,7 @@ const request: AxiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' }
 })
 
-// 请求拦截：自动添加Token
+// 请求拦截：自动添加Token（直接读 localStorage，避免循环依赖）
 request.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token')
@@ -22,6 +20,7 @@ request.interceptors.request.use(
 )
 
 // 响应拦截：统一处理错误
+// ⚠️ 不直接 import router/store，改为运行时动态获取，避免循环依赖
 request.interceptors.response.use(
   (response: AxiosResponse) => {
     const { data } = response
@@ -31,7 +30,11 @@ request.interceptors.response.use(
     if (data.code === 401) {
       ElMessage.error(data.message || '登录已过期，请重新登录')
       localStorage.removeItem('token')
-      router.push('/login')
+      localStorage.removeItem('userInfo')
+      // 运行时动态 import，避免循环依赖
+      import('@/router').then(({ default: router }) => {
+        router.push('/login')
+      })
       return Promise.reject(new Error(data.message))
     }
     if (data.code === 403) {
@@ -44,7 +47,10 @@ request.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
-      router.push('/login')
+      localStorage.removeItem('userInfo')
+      import('@/router').then(({ default: router }) => {
+        router.push('/login')
+      })
     }
     ElMessage.error(error.response?.data?.message || '网络请求失败')
     return Promise.reject(error)
