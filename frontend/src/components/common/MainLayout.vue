@@ -4,8 +4,7 @@
     <el-aside :width="isCollapsed ? '64px' : '220px'" class="layout-aside">
       <!-- Logo -->
       <div class="sidebar-logo">
-        <img src="/gydllogo.png" alt="logo" class="sidebar-logo-icon" />
-        <span v-if="!isCollapsed" class="logo-text">国云等保测评</span>
+        <img src="/new_logo_2.png" alt="logo" class="sidebar-logo-full" />
       </div>
 
       <!-- 菜单 -->
@@ -418,9 +417,16 @@ async function submitChangePassword() {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: #000c17;
+  background: #ffffff;
   flex-shrink: 0;
   padding: 8px 12px;
+}
+
+.sidebar-logo-full {
+  max-height: 44px;
+  max-width: 180px;
+  width: auto;
+  object-fit: contain;
 }
 
 .sidebar-logo-img {

@@ -39,6 +39,12 @@
                 <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
               </el-select>
             </el-form-item>
+            <el-form-item label="项目组成员">
+              <el-input v-model="queryForm.memberName" placeholder="输入成员姓名" clearable style="width:150px" />
+            </el-form-item>
+            <el-form-item label="项目负责人">
+              <el-input v-model="queryForm.projectLeaderName" placeholder="输入负责人姓名" clearable style="width:150px" />
+            </el-form-item>
             <el-form-item label="项目类型">
               <el-select v-model="queryForm.projectTypeId" clearable placeholder="全部" style="width:130px">
                 <el-option v-for="d in projectTypeOptions" :key="d.id" :label="d.itemLabel" :value="d.id" />
@@ -302,6 +308,8 @@ const allColumns = [
   { prop: 'sysLevels',           label: '系统等级',      width: 140 },
   { prop: 'sysCountL2',          label: '2级系统数',     width: 90 },
   { prop: 'sysCountL3',          label: '3级系统数',     width: 90 },
+  { prop: 'sysCount',            label: '系统数量',       width: 80 },
+  { prop: 'projectGroupMembers', label: '项目组成员',    minWidth: 150 },
   { prop: 'projectTypeName',     label: '项目类型',      width: 90 },
   { prop: 'industryName',        label: '所属行业',      width: 100 },
   { prop: 'projectManagerName',  label: '项目经理',      width: 100 },
@@ -347,6 +355,8 @@ const queryForm = reactive({
   projectManagerId: undefined as any,
   projectTypeId: undefined as any,
   industryId: undefined as any,
+  memberName: '',
+  projectLeaderName: '',
 })
 const dateRange = ref<string[]>([])
 const loading = ref(false)
@@ -404,6 +414,8 @@ function handleReset() {
     projectManagerId: undefined,
     projectTypeId: undefined,
     industryId: undefined,
+    memberName: '',
+    projectLeaderName: '',
   })
   dateRange.value = []
   loadList()

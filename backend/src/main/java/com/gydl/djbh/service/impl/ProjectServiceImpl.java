@@ -68,10 +68,12 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public PageResult<ProjectDetailResp> page(ProjectQueryReq req) {
-        // For encrypted fields (projectName, customerName), we fetch all matching other criteria,
-        // then filter in memory to support fuzzy search
+        // For encrypted fields (projectName, customerName) or member name filters,
+        // we fetch all matching other criteria then filter in memory
         boolean hasNameFilter = (req.getProjectName() != null && !req.getProjectName().isEmpty())
-                || (req.getCustomerName() != null && !req.getCustomerName().isEmpty());
+                || (req.getCustomerName() != null && !req.getCustomerName().isEmpty())
+                || (req.getMemberName() != null && !req.getMemberName().isEmpty())
+                || (req.getProjectLeaderName() != null && !req.getProjectLeaderName().isEmpty());
 
         if (hasNameFilter) {
             // Fetch all (ignore pagination for now) then filter in memory
@@ -86,11 +88,20 @@ public class ProjectServiceImpl implements ProjectService {
             for (TProject p : allList) {
                 if (req.getProjectName() != null && !req.getProjectName().isEmpty()) {
                     String decrypted = decryptIfNotNull(p.getProjectName());
-                    if (decrypted == null || !decrypted.contains(req.getProjectName())) continue;
+                    if (decrypted == null || !normalizeName(decrypted).contains(normalizeName(req.getProjectName()))) continue;
                 }
                 if (req.getCustomerName() != null && !req.getCustomerName().isEmpty()) {
                     String decrypted = decryptIfNotNull(p.getCustomerName());
-                    if (decrypted == null || !decrypted.contains(req.getCustomerName())) continue;
+                    if (decrypted == null || !normalizeName(decrypted).contains(normalizeName(req.getCustomerName()))) continue;
+                }
+                // 按项目组成员姓名过滤（project_leader角色）
+                if (req.getMemberName() != null && !req.getMemberName().isEmpty()) {
+                    if (!projectHasMemberByName(p.getId(), req.getMemberName(), "project_leader")) continue;
+                }
+                // 按项目负责人姓名过滤（project_leader角色，也包含project_manager）
+                if (req.getProjectLeaderName() != null && !req.getProjectLeaderName().isEmpty()) {
+                    String leaderName = decryptIfNotNull(p.getProjectLeaderName());
+                    if (leaderName == null || !normalizeName(leaderName).contains(normalizeName(req.getProjectLeaderName()))) continue;
                 }
                 filtered.add(p);
             }
@@ -123,6 +134,35 @@ public class ProjectServiceImpl implements ProjectService {
             result.add(toResp(p, false));
         }
         return PageResult.of(total, req.getPageNum(), req.getPageSize(), result);
+    }
+
+    /**
+     * 标准化姓名：去除空格、标点符号后转小写，用于模糊匹配
+     */
+    private String normalizeName(String name) {
+        if (name == null) return "";
+        return name.replaceAll("[\\s\\p{P}\\p{Z}]", "").toLowerCase();
+    }
+
+    /**
+     * 判断项目是否有指定角色且姓名匹配的成员
+     */
+    private boolean projectHasMemberByName(Long projectId, String nameFilter, String roleType) {
+        List<TProjectMember> members = memberMapper.findByProjectId(projectId);
+        String normalizedFilter = normalizeName(nameFilter);
+        for (TProjectMember m : members) {
+            if (roleType != null && !roleType.equals(m.getRoleType())) continue;
+            if (m.getMemberId() != null) {
+                com.gydl.djbh.entity.TStaff staff = staffMapper.selectById(m.getMemberId());
+                if (staff != null) {
+                    String realName = decryptIfNotNull(staff.getRealName());
+                    if (realName != null && normalizeName(realName).contains(normalizedFilter)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     @Override
@@ -720,6 +760,25 @@ public class ProjectServiceImpl implements ProjectService {
         resp.setCreatedAt(p.getCreatedAt());
         resp.setUpdatedAt(p.getUpdatedAt());
 
+        // 系统总数 = 2级 + 3级
+        int l2 = p.getSysCountL2() != null ? p.getSysCountL2() : 0;
+        int l3 = p.getSysCountL3() != null ? p.getSysCountL3() : 0;
+        resp.setSysCount(l2 + l3);
+
+        // 项目组成员（project_leader角色）
+        List<TProjectMember> memberList4Resp = memberMapper.findByProjectId(p.getId());
+        List<String> projectLeaderNames = new ArrayList<>();
+        for (TProjectMember m : memberList4Resp) {
+            if ("project_leader".equals(m.getRoleType()) && m.getMemberId() != null) {
+                com.gydl.djbh.entity.TStaff staff = staffMapper.selectById(m.getMemberId());
+                if (staff != null) {
+                    String name = decryptIfNotNull(staff.getRealName());
+                    if (name != null && !name.isEmpty()) projectLeaderNames.add(name);
+                }
+            }
+        }
+        resp.setProjectGroupMembers(String.join("、", projectLeaderNames));
+
         if (loadDetail) {
             // 被测系统
             List<TProjectSystem> sysList = systemMapper.findByProjectId(p.getId());
@@ -736,10 +795,9 @@ public class ProjectServiceImpl implements ProjectService {
             }
             resp.setSystems(sysResult);
 
-            // 项目人员（按角色分组，前端按 memberRole 筛选）
-            List<TProjectMember> memberList = memberMapper.findByProjectId(p.getId());
+            // 项目人员（按角色分组，前端按 memberRole 筛选），复用 memberList4Resp
             List<Map<String, Object>> memberResult = new ArrayList<>();
-            for (TProjectMember m : memberList) {
+            for (TProjectMember m : memberList4Resp) {
                 Map<String, Object> mMap = new HashMap<>();
                 mMap.put("staffId", m.getMemberId());
                 mMap.put("memberRole", m.getRoleType());
