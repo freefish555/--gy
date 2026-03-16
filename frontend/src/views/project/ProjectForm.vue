@@ -9,21 +9,58 @@
       </template>
 
       <el-tabs v-model="activeTab" class="form-tabs">
-        <!-- Tab1: 基本信息 -->
+        <!-- ===== Tab1: 基本信息 ===== -->
         <el-tab-pane label="基本信息" name="tab1">
           <el-form :model="form" :rules="rules" ref="formRef1" label-width="120px" class="form-body">
+
+            <!-- 第一行：项目编号 + 2级系统数量 + 3级系统数量 -->
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="项目编号" prop="projectNo">
                   <el-input v-model="form.projectNo" placeholder="如: 2025-DJBH-001" />
                 </el-form-item>
               </el-col>
-              <el-col :span="12">
-                <el-form-item label="任务书编号" prop="taskNo">
-                  <el-input v-model="form.taskNo" placeholder="请输入任务书编号" />
+              <el-col :span="6">
+                <el-form-item label="2级系统数量" label-width="110px">
+                  <el-input-number
+                    v-model="form.sysCountL2"
+                    :min="0" :controls="false"
+                    placeholder="自动统计"
+                    style="width:100%"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
+                <el-form-item label="3级系统数量" label-width="110px">
+                  <el-input-number
+                    v-model="form.sysCountL3"
+                    :min="0" :controls="false"
+                    placeholder="自动统计"
+                    style="width:100%"
+                  />
                 </el-form-item>
               </el-col>
             </el-row>
+
+            <!-- 系统名称合并（自动生成+可手动编辑） -->
+            <el-row :gutter="20">
+              <el-col :span="24">
+                <el-form-item label="系统名称合并">
+                  <el-input
+                    v-model="form.systemNameMerged"
+                    placeholder="根据被测系统自动生成，如：xxx系统、xxx2系统（可手动修改）"
+                  >
+                    <template #append>
+                      <el-tooltip content="根据被测系统Tab中填写的系统名称自动拼接，也可在此手动修改">
+                        <el-icon><InfoFilled /></el-icon>
+                      </el-tooltip>
+                    </template>
+                  </el-input>
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <!-- 项目名称 -->
             <el-row :gutter="20">
               <el-col :span="24">
                 <el-form-item label="项目名称" prop="projectName">
@@ -31,6 +68,8 @@
                 </el-form-item>
               </el-col>
             </el-row>
+
+            <!-- 客户名称 + 客户地址 -->
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="客户名称" prop="customerName">
@@ -43,6 +82,8 @@
                 </el-form-item>
               </el-col>
             </el-row>
+
+            <!-- 联系人 + 联系电话 -->
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="联系人姓名">
@@ -55,6 +96,8 @@
                 </el-form-item>
               </el-col>
             </el-row>
+
+            <!-- 项目类型 + 所属行业 -->
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="项目类型" prop="projectTypeId">
@@ -71,21 +114,8 @@
                 </el-form-item>
               </el-col>
             </el-row>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="项目状态">
-                  <el-select v-model="form.projectStatus" style="width:100%">
-                    <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
-                  </el-select>
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="纸质归档">
-                  <el-switch v-model="form.paperArchived" :active-value="1" :inactive-value="0"
-                    active-text="已归档" inactive-text="未归档" />
-                </el-form-item>
-              </el-col>
-            </el-row>
+
+            <!-- 合同签订日期 + 合同金额 -->
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="合同签订日期">
@@ -95,11 +125,12 @@
               </el-col>
               <el-col :span="12">
                 <el-form-item label="合同金额(元)">
-                  <el-input-number v-model="form.contractAmount" :precision="2" :min="0"
-                    :controls="false" placeholder="请输入合同金额" style="width:100%" />
+                  <el-input v-model="form.contractAmount" placeholder="请输入合同金额" />
                 </el-form-item>
               </el-col>
             </el-row>
+
+            <!-- 所属年份 + 业务人员 -->
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="所属年份">
@@ -116,6 +147,8 @@
                 </el-form-item>
               </el-col>
             </el-row>
+
+            <!-- 报告邮寄日期 + 报告邮寄单号 -->
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="报告邮寄日期">
@@ -129,13 +162,36 @@
                 </el-form-item>
               </el-col>
             </el-row>
+
+            <!-- 项目地区 + 归档状态 -->
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="项目地区">
                   <el-input v-model="form.projectRegion" placeholder="如: 华东地区" />
                 </el-form-item>
               </el-col>
+              <el-col :span="12">
+                <el-form-item label="归档状态">
+                  <div class="archive-status-row">
+                    <span class="archive-label">电子归档</span>
+                    <el-switch
+                      v-model="form.electronicArchived"
+                      :active-value="1" :inactive-value="0"
+                      active-text="已归档" inactive-text="未归档"
+                    />
+                    <el-divider direction="vertical" />
+                    <span class="archive-label">纸质归档</span>
+                    <el-switch
+                      v-model="form.paperArchived"
+                      :active-value="1" :inactive-value="0"
+                      active-text="已归档" inactive-text="未归档"
+                    />
+                  </div>
+                </el-form-item>
+              </el-col>
             </el-row>
+
+            <!-- 备注 -->
             <el-row :gutter="20">
               <el-col :span="24">
                 <el-form-item label="备注">
@@ -146,10 +202,10 @@
           </el-form>
         </el-tab-pane>
 
-        <!-- Tab2: 被测系统 -->
+        <!-- ===== Tab2: 被测系统 ===== -->
         <el-tab-pane label="被测系统" name="tab2">
           <div class="tab-header">
-            <el-button type="primary" :icon="Plus" size="small" @click="addSystem">添加系统</el-button>
+            <el-button type="primary" :icon="Plus" size="small" @click="addSystem">+ 添加系统</el-button>
           </div>
           <el-table :data="form.systems" border style="margin-top:12px">
             <el-table-column label="序号" prop="sysSeq" width="80">
@@ -157,29 +213,48 @@
                 <el-input-number v-model="row.sysSeq" :min="1" :controls="false" size="small" style="width:60px" />
               </template>
             </el-table-column>
-            <el-table-column label="系统名称" prop="sysName" min-width="180">
-              <template #default="{ row }">
-                <el-input v-model="row.sysName" placeholder="请输入系统名称" size="small" />
+            <el-table-column label="系统名称" prop="sysName" min-width="200">
+              <template #default="{ row, $index }">
+                <el-input
+                  v-model="row.sysName"
+                  :placeholder="$index === 0 ? '例：xxx系统' : '请输入系统名称'"
+                  size="small"
+                  @input="onSystemNameChange"
+                />
               </template>
             </el-table-column>
-            <el-table-column label="系统等级" prop="sysLevel" width="120">
-              <template #default="{ row }">
-                <el-select v-model="row.sysLevel" placeholder="选择等级" size="small">
-                  <el-option label="一级" value="1" />
-                  <el-option label="二级" value="2" />
-                  <el-option label="三级" value="3" />
-                  <el-option label="四级" value="4" />
+            <el-table-column label="系统等级" prop="sysLevel" width="130">
+              <template #default="{ row, $index }">
+                <el-select
+                  v-model="row.sysLevel"
+                  :placeholder="$index === 0 ? '例：1/2/3/4/5 级' : '选择等级'"
+                  size="small"
+                  @change="onSystemLevelChange"
+                >
+                  <el-option label="一级" :value="1" />
+                  <el-option label="二级" :value="2" />
+                  <el-option label="三级" :value="3" />
+                  <el-option label="四级" :value="4" />
+                  <el-option label="五级" :value="5" />
                 </el-select>
               </template>
             </el-table-column>
             <el-table-column label="测评指标" prop="evalIndex" min-width="150">
-              <template #default="{ row }">
-                <el-input v-model="row.evalIndex" placeholder="测评指标" size="small" />
+              <template #default="{ row, $index }">
+                <el-input
+                  v-model="row.evalIndex"
+                  :placeholder="$index === 0 ? '例：S3A2' : '测评指标'"
+                  size="small"
+                />
               </template>
             </el-table-column>
-            <el-table-column label="备案号" prop="recordNo" width="150">
-              <template #default="{ row }">
-                <el-input v-model="row.recordNo" placeholder="备案号" size="small" />
+            <el-table-column label="备案号" prop="recordNo" min-width="180">
+              <template #default="{ row, $index }">
+                <el-input
+                  v-model="row.recordNo"
+                  :placeholder="$index === 0 ? '例：32001546213-26001' : '备案号'"
+                  size="small"
+                />
               </template>
             </el-table-column>
             <el-table-column label="操作" width="80" fixed="right">
@@ -188,11 +263,14 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="system-hint">
+            <el-text type="info" size="small">提示：系统名称合并和等级数量将根据此处填写内容自动更新到基本信息Tab</el-text>
+          </div>
         </el-tab-pane>
 
-        <!-- Tab3: 人员配置 -->
+        <!-- ===== Tab3: 人员配置 ===== -->
         <el-tab-pane label="人员配置" name="tab3">
-          <el-form :model="form" label-width="130px" class="form-body">
+          <el-form :model="form" label-width="140px" class="form-body">
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="项目经理">
@@ -292,7 +370,7 @@
           </el-form>
         </el-tab-pane>
 
-        <!-- Tab4: 阶段时间 -->
+        <!-- ===== Tab4: 阶段时间 ===== -->
         <el-tab-pane label="阶段时间" name="tab4">
           <el-form :model="form" label-width="130px" class="form-body">
             <el-row :gutter="20">
@@ -303,16 +381,16 @@
                 </el-form-item>
               </el-col>
             </el-row>
-            <el-divider content-position="left">阶段时间段</el-divider>
+            <el-divider content-position="left">各阶段时间段</el-divider>
             <el-row :gutter="20">
               <el-col :span="12">
-                <el-form-item label="准备阶段">
+                <el-form-item label="测评准备阶段">
                   <el-date-picker v-model="form.phasePrepare" type="daterange" value-format="YYYY-MM-DD"
                     start-placeholder="开始" end-placeholder="结束" style="width:100%" />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="方案阶段">
+                <el-form-item label="方案编制阶段">
                   <el-date-picker v-model="form.phasePlan" type="daterange" value-format="YYYY-MM-DD"
                     start-placeholder="开始" end-placeholder="结束" style="width:100%" />
                 </el-form-item>
@@ -326,7 +404,7 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="报告阶段">
+                <el-form-item label="报告编制阶段">
                   <el-date-picker v-model="form.phaseReport" type="daterange" value-format="YYYY-MM-DD"
                     start-placeholder="开始" end-placeholder="结束" style="width:100%" />
                 </el-form-item>
@@ -348,10 +426,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Plus, Delete, Check } from '@element-plus/icons-vue'
+import { ArrowLeft, Plus, Delete, Check, InfoFilled } from '@element-plus/icons-vue'
 import { projectApi } from '@/api/project'
 import { staffApi } from '@/api/staff'
 import { dictApi } from '@/api/system'
@@ -370,13 +448,15 @@ const form = reactive<any>({
   customerAddress: '',
   customerContact: '',
   customerPhone: '',
-  taskNo: '',
+  systemNameMerged: '',
+  sysCountL2: 0,
+  sysCountL3: 0,
   projectTypeId: null,
   industryId: null,
-  projectStatus: 0,
   paperArchived: 0,
+  electronicArchived: 0,
   contractDate: '',
-  contractAmount: null,
+  contractAmount: '',
   yearBelong: '',
   businessPerson: '',
   projectRegion: '',
@@ -407,40 +487,78 @@ const form = reactive<any>({
 })
 
 const rules = {
-  projectNo: [{ required: true, message: '请输入项目编号' }],
-  projectName: [{ required: true, message: '请输入项目名称' }],
-  customerName: [{ required: true, message: '请输入客户名称' }],
-  projectTypeId: [{ required: true, message: '请选择项目类型' }],
+  projectNo: [{ required: true, message: '请输入项目编号', trigger: 'blur' }],
+  projectName: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
+  customerName: [{ required: true, message: '请输入客户名称', trigger: 'blur' }],
+  projectTypeId: [{ required: true, message: '请选择项目类型', trigger: 'change' }],
 }
 
 const staffOptions = ref<any[]>([])
 const projectTypeOptions = ref<any[]>([])
 const industryOptions = ref<any[]>([])
 
-const statusOptions = [
-  { value: 0, label: '待启动' },
-  { value: 1, label: '进行中' },
-  { value: 2, label: '测评完成' },
-  { value: 3, label: '报告已出' },
-  { value: 4, label: '已归档' },
-]
+// ===== 监听被测系统变化，自动更新合并名称和等级数量 =====
+function onSystemNameChange() {
+  autoUpdateMergedAndCount()
+}
+
+function onSystemLevelChange() {
+  autoUpdateMergedAndCount()
+}
+
+// 用 watch 监听 systems 深度变化
+watch(() => form.systems, () => {
+  autoUpdateMergedAndCount()
+}, { deep: true })
+
+function autoUpdateMergedAndCount() {
+  const validSystems = form.systems.filter((s: any) => s.sysName && s.sysName.trim())
+
+  // 自动拼接系统名称（顿号分隔）
+  const merged = validSystems.map((s: any) => s.sysName.trim()).join('、')
+  // 只有当用户没有手动修改过（即当前值与上次自动生成的值相同）时才自动更新
+  // 简化处理：始终自动更新（用户若需手动可直接改基本信息Tab）
+  if (merged) {
+    form.systemNameMerged = merged
+  }
+
+  // 统计等级数量
+  const l2 = validSystems.filter((s: any) => s.sysLevel === 2).length
+  const l3 = validSystems.filter((s: any) => s.sysLevel === 3).length
+  form.sysCountL2 = l2
+  form.sysCountL3 = l3
+}
+
+function addSystem() {
+  const nextSeq = form.systems.length + 1
+  form.systems.push({ sysSeq: nextSeq, sysName: '', sysLevel: null, evalIndex: '', recordNo: '' })
+}
+
+function removeSystem(index: number) {
+  form.systems.splice(index, 1)
+  // 重新编号
+  form.systems.forEach((s: any, i: number) => { s.sysSeq = i + 1 })
+  autoUpdateMergedAndCount()
+}
+
+function formatPhaseRange(val: string[]): string {
+  if (!val || val.length < 2) return ''
+  return val[0] + '~' + val[1]
+}
 
 onMounted(async () => {
-  // 加载员工列表
   try {
     const res: any = await staffApi.all()
     staffOptions.value = res.data || []
   } catch {}
 
-  // 加载字典
   try {
-    const ptRes: any = await dictApi.getAllItems('project_type')
+    const ptRes: any = await dictApi.getAllItems('PROJECT_TYPE')
     projectTypeOptions.value = ptRes.data || []
-    const indRes: any = await dictApi.getAllItems('industry')
+    const indRes: any = await dictApi.getAllItems('INDUSTRY')
     industryOptions.value = indRes.data || []
   } catch {}
 
-  // 编辑时加载数据
   if (isEdit.value) {
     loadDetail()
   }
@@ -473,19 +591,6 @@ async function loadDetail() {
   } catch (e: any) {
     ElMessage.error('加载项目详情失败: ' + e.message)
   }
-}
-
-function addSystem() {
-  form.systems.push({ sysSeq: form.systems.length + 1, sysName: '', sysLevel: '3', evalIndex: '', recordNo: '' })
-}
-
-function removeSystem(index: number) {
-  form.systems.splice(index, 1)
-}
-
-function formatPhaseRange(val: string[]): string {
-  if (!val || val.length < 2) return ''
-  return val[0] + '~' + val[1]
 }
 
 async function handleSubmit() {
@@ -531,5 +636,19 @@ async function handleSubmit() {
   padding: 20px 0 4px;
   border-top: 1px solid #f0f0f0;
   margin-top: 16px;
+}
+.archive-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.archive-label {
+  color: #606266;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.system-hint {
+  margin-top: 8px;
+  padding: 4px 0;
 }
 </style>

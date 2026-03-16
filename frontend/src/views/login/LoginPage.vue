@@ -4,7 +4,7 @@
       <!-- Logo区域 -->
       <div class="login-header">
         <div class="logo-icon">
-          <el-icon :size="40" color="#409EFF"><Lock /></el-icon>
+          <img src="/gydllogo.png" alt="国云电力Logo" class="logo-img" />
         </div>
         <h1 class="system-title">网络安全等级保护测评</h1>
         <p class="system-subtitle">项目管理及材料规定管理系统</p>
@@ -245,17 +245,21 @@ async function handleTotpVerify() {
 }
 
 .logo-icon {
-  width: 70px;
-  height: 70px;
-  background: linear-gradient(135deg, #409EFF, #1a237e);
-  border-radius: 50%;
+  width: 120px;
+  height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto 16px;
 }
 
-.logo-icon .el-icon { color: #fff !important; }
+.logo-img {
+  width: 100%;
+  height: auto;
+  max-height: 120px;
+  object-fit: contain;
+  border-radius: 12px;
+}
 
 .system-title {
   font-size: 20px;

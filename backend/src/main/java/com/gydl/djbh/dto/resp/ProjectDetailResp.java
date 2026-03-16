@@ -20,7 +20,8 @@ public class ProjectDetailResp {
     private String customerContact;
     private String customerPhone;
     private String systemNameMerged;
-    private String taskNo;
+    private Integer sysCountL2;
+    private Integer sysCountL3;
 
     // 字典关联
     private Long projectTypeId;
@@ -36,12 +37,11 @@ public class ProjectDetailResp {
 
     // 合同
     private LocalDate contractDate;
-    private String contractAmount;  // 返回时脱敏或解密
+    private String contractAmount;
 
-    // 状态
-    private Integer projectStatus;
-    private String projectStatusName;
+    // 归档标识
     private Integer paperArchived;
+    private Integer electronicArchived;
 
     // 阶段时间
     private String phasePrepare;

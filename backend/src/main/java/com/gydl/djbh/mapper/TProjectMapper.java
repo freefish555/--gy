@@ -26,7 +26,6 @@ public interface TProjectMapper extends BaseMapper<TProject> {
             "<if test='customerName != null and customerName != \"\"'>AND p.customer_name LIKE CONCAT('%',#{customerName},'%') </if>" +
             "<if test='projectManagerId != null'>AND p.project_manager_id = #{projectManagerId} </if>" +
             "<if test='projectLeaderId != null'>AND p.project_leader_id = #{projectLeaderId} </if>" +
-            "<if test='projectStatus != null'>AND p.project_status = #{projectStatus} </if>" +
             "<if test='projectTypeId != null'>AND p.project_type_id = #{projectTypeId} </if>" +
             "<if test='industryId != null'>AND p.industry_id = #{industryId} </if>" +
             "<if test='yearBelong != null and yearBelong != \"\"'>AND p.year_belong = #{yearBelong} </if>" +
@@ -35,7 +34,7 @@ public interface TProjectMapper extends BaseMapper<TProject> {
             "</script>")
     List<TProject> findPage(@Param("projectNo") String projectNo, @Param("projectName") String projectName,
                              @Param("customerName") String customerName, @Param("projectManagerId") Long projectManagerId,
-                             @Param("projectLeaderId") Long projectLeaderId, @Param("projectStatus") Integer projectStatus,
+                             @Param("projectLeaderId") Long projectLeaderId,
                              @Param("projectTypeId") Long projectTypeId, @Param("industryId") Long industryId,
                              @Param("yearBelong") String yearBelong,
                              @Param("offset") int offset, @Param("pageSize") int pageSize);
@@ -47,14 +46,13 @@ public interface TProjectMapper extends BaseMapper<TProject> {
             "<if test='customerName != null and customerName != \"\"'>AND p.customer_name LIKE CONCAT('%',#{customerName},'%') </if>" +
             "<if test='projectManagerId != null'>AND p.project_manager_id = #{projectManagerId} </if>" +
             "<if test='projectLeaderId != null'>AND p.project_leader_id = #{projectLeaderId} </if>" +
-            "<if test='projectStatus != null'>AND p.project_status = #{projectStatus} </if>" +
             "<if test='projectTypeId != null'>AND p.project_type_id = #{projectTypeId} </if>" +
             "<if test='industryId != null'>AND p.industry_id = #{industryId} </if>" +
             "<if test='yearBelong != null and yearBelong != \"\"'>AND p.year_belong = #{yearBelong} </if>" +
             "</script>")
     long countPage(@Param("projectNo") String projectNo, @Param("projectName") String projectName,
                     @Param("customerName") String customerName, @Param("projectManagerId") Long projectManagerId,
-                    @Param("projectLeaderId") Long projectLeaderId, @Param("projectStatus") Integer projectStatus,
+                    @Param("projectLeaderId") Long projectLeaderId,
                     @Param("projectTypeId") Long projectTypeId, @Param("industryId") Long industryId,
                     @Param("yearBelong") String yearBelong);
 

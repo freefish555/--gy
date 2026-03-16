@@ -2,14 +2,27 @@ server:
   port: 8080
   servlet:
     context-path: /api
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
   tomcat:
     max-threads: 200
+    uri-encoding: UTF-8
 
 spring:
   application:
     name: djbh-system
   profiles:
     active: dev
+
+  # 强制UTF-8编码
+  mandatory-charset: UTF-8
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
   # 文件上传
   servlet:

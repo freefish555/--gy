@@ -30,8 +30,6 @@ public class ProjectQueryReq {
     private Long projectTypeId;
     /** 所属行业字典项ID */
     private Long industryId;
-    /** 项目状态（多选，逗号分隔） */
-    private String projectStatus;
     /** 业务人员（模糊） */
     private String businessPerson;
     /** 合同签订日期起 */

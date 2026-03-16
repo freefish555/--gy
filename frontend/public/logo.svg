@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 60" width="220" height="60">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d47a1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1565c0;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="boltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD600;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFA000;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Shield shape -->
+  <path d="M20 6 L34 2 L48 6 L48 24 Q48 38 34 44 Q20 38 20 24 Z" fill="url(#shieldGrad)" />
+
+  <!-- Outer shield glow border -->
+  <path d="M20 6 L34 2 L48 6 L48 24 Q48 38 34 44 Q20 38 20 24 Z" fill="none" stroke="#1976D2" stroke-width="1.5" opacity="0.5"/>
+
+  <!-- Lightning bolt (electricity symbol) inside shield -->
+  <polygon points="37,11 30,25 34,25 31,37 38,21 34,21 37,11" fill="url(#boltGrad)" />
+
+  <!-- Company name: 国云电力 -->
+  <text x="58" y="22" font-family="'Microsoft YaHei', 'PingFang SC', SimHei, sans-serif" font-size="16" font-weight="bold" fill="#0d47a1">南京国云电力</text>
+
+  <!-- System name -->
+  <text x="58" y="40" font-family="'Microsoft YaHei', 'PingFang SC', SimHei, sans-serif" font-size="10" fill="#455A64" letter-spacing="0.5">等保测评项目管理系统</text>
+</svg>

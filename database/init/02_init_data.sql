@@ -154,8 +154,8 @@ WHERE perm_code IN ('log:login:view','log:operation:view','log:server:config');
 INSERT INTO t_user (username, real_name, password_hash, role_id, status, first_login, created_at)
 VALUES (
     'admin',
-    'c3VwZXJhZG1pbg==',  -- 占位，real_name需SM4加密，此处为Base64示意，实际由应用层初始化
-    '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iAt6Z5EH',  -- Admin@123456
+    '85TWKWSVvwFmLdGJwkjiLw==',  -- SM4加密的"超级管理员"（默认开发密钥djbhdefaultkey00）
+    '$2a$10$k3x.4c6z8eKrJhOSGRmmCezdVMFvyoJmRxlOqebirthBMiMDE3ZHa',  -- Admin@123456
     (SELECT id FROM t_role WHERE role_code='SUPER_ADMIN'),
     1, 1, NOW()
 );
@@ -187,3 +187,57 @@ INSERT INTO t_pentest_tool (tool_no, tool_name, tool_version) VALUES
 ('CL-RJ-15', 'Behinder',   '4.1'),
 ('CL-RJ-16', 'Xray',       '1.9.11'),
 ('CL-RJ-17', 'Yakit',      '1.2.5');
+
+-- ------------------------------------------------------------
+-- 初始化测评专用机（个人配备，CL-CP011~CL-CP044）
+-- ------------------------------------------------------------
+INSERT INTO t_eval_device (device_no, device_name, device_model, device_type, status, data_hmac) VALUES
+('CL-CP011', '测评专用机', 'Lenovo ThinkPad E570', 1, 1, ''),
+('CL-CP012', '测评专用机', 'Lenovo ThinkPad E570', 1, 1, ''),
+('CL-CP013', '测评专用机', 'Lenovo ThinkPad E570', 1, 1, ''),
+('CL-CP014', '测评专用机', 'Lenovo ThinkPad E570', 1, 1, ''),
+('CL-CP015', '测评专用机', 'Lenovo ThinkPad E570', 1, 1, ''),
+('CL-CP016', '测评专用机', 'Lenovo ThinkPad E570', 1, 1, ''),
+('CL-CP017', '测评专用机', 'Lenovo ThinkPad E570', 1, 1, ''),
+('CL-CP018', '测评专用机', 'Huawei MatebookD15', 1, 1, ''),
+('CL-CP019', '测评专用机', 'Huawei MatebookD15', 1, 1, ''),
+('CL-CP020', '测评专用机', 'Huawei MatebookD15', 1, 1, ''),
+('CL-CP021', '测评专用机', 'Huawei MatebookD15', 1, 1, ''),
+('CL-CP022', '测评专用机', 'Huawei MatebookD15', 1, 1, ''),
+('CL-CP024', '测评专用机', 'Huawei MatebookD15', 1, 1, ''),
+('CL-CP025', '测评专用机', 'Huawei MatebookD15', 1, 1, ''),
+('CL-CP026', '测评专用机', 'ThinkBook16+', 1, 1, ''),
+('CL-CP027', '测评专用机', 'ThinkBook16+', 1, 1, ''),
+('CL-CP028', '测评专用机', 'ThinkBook16+', 1, 1, ''),
+('CL-CP029', '测评专用机', 'ThinkBook16+', 1, 1, ''),
+('CL-CP030', '测评专用机', 'ThinkBook16+', 1, 1, ''),
+('CL-CP031', '测评专用机', 'ThinkBook16+', 1, 1, ''),
+('CL-CP032', '测评专用机', 'ThinkBook16+', 1, 1, ''),
+('CL-CP033', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP034', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP035', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP036', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP037', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP038', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP039', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP040', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP041', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP042', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP043', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, ''),
+('CL-CP044', '测评专用机', 'ThinkBook16G7+ IAH', 1, 1, '');
+
+-- ------------------------------------------------------------
+-- 初始化归档模板记录（文件需部署到 ./data/templates/ 目录）
+-- ------------------------------------------------------------
+INSERT INTO t_archive_template (template_code, template_name, template_category, file_original_name, file_path, file_size, version, is_default, status, upload_by, upload_at, data_hmac)
+VALUES
+('project_plan_electric_2', '项目计划书-电力二级', '项目计划书', '2-xmbh-项目计划书-电力二级.docx', './data/templates/tpl_project_plan_electric_2.docx', 68730, 'v1.0', 1, 1, 1, NOW(), ''),
+('project_plan_electric_3', '项目计划书-电力三级', '项目计划书', '2-xmbh-项目计划书-电力三级.docx', './data/templates/tpl_project_plan_electric_3.docx', 69020, 'v1.0', 1, 1, 1, NOW(), ''),
+('project_plan_peripheral_2', '项目计划书-外围二级', '项目计划书', '2-xmbh-项目计划书-外围二级.docx', './data/templates/tpl_project_plan_peripheral_2.docx', 68675, 'v1.0', 1, 1, 1, NOW(), ''),
+('project_plan_peripheral_3', '项目计划书-外围三级', '项目计划书', '2-xmbh-项目计划书-外围三级.docx', './data/templates/tpl_project_plan_peripheral_3.docx', 69239, 'v1.0', 1, 1, 1, NOW(), ''),
+('task_dengbao', '项目任务书-等保测评服务', '项目任务书', '2-xmbh-项目任务书-等保测评服务.docx', './data/templates/tpl_task_dengbao.docx', 23004, 'v1.0', 1, 1, 1, NOW(), ''),
+('task_dengbao_eval', '项目任务书-等保及评估服务', '项目任务书', '2-xmbh-项目任务书-等保及评估服务.docx', './data/templates/tpl_task_dengbao_eval.docx', 23146, 'v1.0', 1, 1, 1, NOW(), ''),
+('pm_appointment', '项目经理任命审批表', '审批表', '2-xmbh-项目经理任命审批表.docx', './data/templates/tpl_pm_appointment.docx', 23281, 'v1.0', 1, 1, 1, NOW(), ''),
+('tool_list', '测评工具清单', '工具清单', '2-xmbh-测评工具清单.docx', './data/templates/tpl_tool_list.docx', 26741, 'v1.0', 1, 1, 1, NOW(), ''),
+('meeting_minutes', '会议纪要及相关文件', '会议纪要', '5-xmbh会议纪要等.docx', './data/templates/tpl_meeting_minutes.docx', 26859, 'v1.0', 1, 1, 1, NOW(), ''),
+('confidential_agreement', '保密协议及相关文件', '保密协议', '5-xmbh保密协议等.docx', './data/templates/tpl_confidential_agreement.docx', 61837, 'v1.0', 1, 1, 1, NOW(), '');

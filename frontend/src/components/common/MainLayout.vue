@@ -4,8 +4,8 @@
     <el-aside :width="isCollapsed ? '64px' : '220px'" class="layout-aside">
       <!-- Logo -->
       <div class="sidebar-logo">
-        <el-icon color="#fff" :size="24"><Lock /></el-icon>
-        <span v-if="!isCollapsed" class="logo-text">等保项目管理</span>
+        <img src="/gydllogo.png" alt="logo" class="sidebar-logo-icon" />
+        <span v-if="!isCollapsed" class="logo-text">国云等保测评</span>
       </div>
 
       <!-- 菜单 -->
@@ -182,6 +182,33 @@
     </el-container>
   </el-container>
 
+  <!-- 个人信息弹窗 -->
+  <el-dialog v-model="showProfile" title="个人信息" width="420px">
+    <el-descriptions :column="1" border>
+      <el-descriptions-item label="用户名">{{ authStore.userInfo?.username }}</el-descriptions-item>
+      <el-descriptions-item label="姓名">{{ authStore.userInfo?.realName }}</el-descriptions-item>
+      <el-descriptions-item label="角色">{{ authStore.userInfo?.roleName }}</el-descriptions-item>
+    </el-descriptions>
+    <template #footer>
+      <el-button type="primary" @click="showProfile=false">关闭</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- 双因子认证弹窗 -->
+  <el-dialog v-model="showTotpDialog" title="绑定双因子认证" width="420px">
+    <div v-if="totpQrCode" style="text-align:center">
+      <p style="margin-bottom:12px;color:#606266">请使用 Google Authenticator 扫描以下二维码：</p>
+      <img :src="totpQrCode" style="width:200px;height:200px" />
+      <p style="margin-top:12px;font-size:12px;color:#909399">密钥：{{ totpSecret }}</p>
+    </div>
+    <div v-else style="text-align:center;color:#909399;padding:20px">
+      暂未配置双因子认证，请联系管理员
+    </div>
+    <template #footer>
+      <el-button type="primary" @click="showTotpDialog=false">关闭</el-button>
+    </template>
+  </el-dialog>
+
   <!-- 修改密码弹窗 -->
   <el-dialog v-model="showChangePassword" title="修改密码" width="420px">
     <el-form :model="passwordForm" :rules="passwordRules" ref="passwordFormRef" label-width="80px">
@@ -203,7 +230,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -239,6 +266,16 @@ const breadcrumbs = computed(() => {
 const showChangePassword = ref(false)
 const pwdLoading = ref(false)
 const passwordFormRef = ref()
+
+// 首次登录自动弹出修改密码
+onMounted(() => {
+  if (authStore.userInfo?.firstLogin) {
+    setTimeout(() => {
+      ElMessage.warning({ message: '首次登录，请先修改密码', duration: 4000 })
+      showChangePassword.value = true
+    }, 800)
+  }
+})
 const passwordForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const passwordRules = {
   oldPassword: [{ required: true, message: '请输入原密码' }],
@@ -258,13 +295,22 @@ const passwordRules = {
   ]
 }
 
+// 个人信息弹窗
+const showProfile = ref(false)
+const showTotpDialog = ref(false)
+const totpQrCode = ref('')
+const totpSecret = ref('')
+
 function handleUserCommand(cmd: string) {
   switch (cmd) {
+    case 'profile':
+      showProfile.value = true
+      break
     case 'password':
       showChangePassword.value = true
       break
     case 'totp':
-      router.push('/system/totp')
+      loadTotpQr()
       break
     case 'logout':
       ElMessageBox.confirm('确认退出登录？', '提示', { type: 'warning' })
@@ -274,6 +320,17 @@ function handleUserCommand(cmd: string) {
           router.push('/login')
         })
       break
+  }
+}
+
+async function loadTotpQr() {
+  try {
+    const res: any = await request.get('/auth/totp/setup')
+    totpQrCode.value = res.data?.qrCode || ''
+    totpSecret.value = res.data?.secret || ''
+    showTotpDialog.value = true
+  } catch (e: any) {
+    ElMessage.info('双因子认证设置: ' + (e.message || '请联系管理员'))
   }
 }
 
@@ -317,6 +374,22 @@ async function submitChangePassword() {
   gap: 10px;
   background: #000c17;
   flex-shrink: 0;
+  padding: 8px 12px;
+}
+
+.sidebar-logo-img {
+  max-height: 44px;
+  max-width: 44px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.sidebar-logo-icon {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 4px;
 }
 
 .logo-text {

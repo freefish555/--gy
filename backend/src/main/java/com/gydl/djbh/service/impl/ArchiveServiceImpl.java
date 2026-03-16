@@ -6,6 +6,7 @@ import com.gydl.djbh.exception.BusinessException;
 import com.gydl.djbh.mapper.*;
 import com.gydl.djbh.service.ArchiveService;
 import com.gydl.djbh.utils.SecurityContextUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.xwpf.usermodel.*;
@@ -92,7 +93,7 @@ public class ArchiveServiceImpl implements ArchiveService {
 
                     if (docBytes != null) {
                         // 文件名：原模板名，替换xmbh为项目编号
-                        String fileName = template.getFileName()
+                        String fileName = template.getFileOriginalName()
                                 .replace("xmbh", projectNoPlain)
                                 .replace("XMBH", projectNoPlain);
                         zos.putNextEntry(new ZipEntry(fileName));
@@ -118,11 +119,11 @@ public class ArchiveServiceImpl implements ArchiveService {
             map.put("templateName", t.getTemplateName());
             map.put("templateCode", t.getTemplateCode());
             map.put("templateCategory", t.getTemplateCategory());
-            map.put("fileName", t.getFileName());
+            map.put("fileName", t.getFileOriginalName());
             map.put("fileSize", t.getFileSize());
             map.put("version", t.getVersion());
             map.put("status", t.getStatus());
-            map.put("createdAt", t.getCreatedAt());
+            map.put("updatedAt", t.getUploadAt());
             result.add(map);
         }
         return result;
@@ -158,10 +159,10 @@ public class ArchiveServiceImpl implements ArchiveService {
             existing = existingList.get(0);
             existing.setTemplateName(templateName);
             existing.setTemplateCategory(templateCategory);
-            existing.setFileName(originalFilename);
+            existing.setFileOriginalName(originalFilename);
             existing.setFilePath(filePath.toString());
             existing.setFileSize((long) fileBytes.length);
-            existing.setVersion(existing.getVersion() + 1);
+            existing.setVersion("v" + (parseVersionNum(existing.getVersion()) + 1) + ".0");
             existing.setStatus(1);
             templateMapper.updateById(existing);
             return existing.getId();
@@ -171,12 +172,13 @@ public class ArchiveServiceImpl implements ArchiveService {
         template.setTemplateName(templateName);
         template.setTemplateCode(templateCode);
         template.setTemplateCategory(templateCategory);
-        template.setFileName(originalFilename);
+        template.setFileOriginalName(originalFilename);
         template.setFilePath(filePath.toString());
         template.setFileSize((long) fileBytes.length);
-        template.setVersion(1);
+        template.setVersion("v1.0");
+        template.setIsDefault(1);
         template.setStatus(1);
-        template.setCreatedBy(SecurityContextUtil.getCurrentUserIdSafe());
+        template.setUploadBy(SecurityContextUtil.getCurrentUserIdSafe());
         templateMapper.insert(template);
         return template.getId();
     }
@@ -195,6 +197,42 @@ public class ArchiveServiceImpl implements ArchiveService {
         return new ArrayList<>();
     }
 
+    // In-memory store for generated archives (projectId -> zip bytes)
+    private final Map<Long, byte[]> archiveStore = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @Override
+    public String storeArchive(Long projectId, byte[] zipBytes) {
+        archiveStore.put(projectId, zipBytes);
+        return "archive_" + projectId + ".zip";
+    }
+
+    @Override
+    public byte[] getStoredArchive(Long projectId) {
+        return archiveStore.get(projectId);
+    }
+
+    @Override
+    public void downloadTemplate(Long id, HttpServletResponse response) throws Exception {
+        TArchiveTemplate template = templateMapper.selectById(id);
+        if (template == null) throw new BusinessException("模板不存在");
+
+        Path filePath = Paths.get(template.getFilePath());
+        if (!Files.exists(filePath)) {
+            throw new BusinessException("模板文件不存在，请重新上传");
+        }
+
+        byte[] fileBytes = Files.readAllBytes(filePath);
+        String fileName = template.getFileOriginalName() != null
+                ? template.getFileOriginalName() : "template.docx";
+
+        response.setContentType("application/octet-stream");
+        response.setHeader("Content-Disposition",
+                "attachment; filename=\"" + java.net.URLEncoder.encode(fileName, "UTF-8") + "\"");
+        response.setContentLength(fileBytes.length);
+        response.getOutputStream().write(fileBytes);
+        response.getOutputStream().flush();
+    }
+
     // ==================== 核心：占位符替换 ====================
 
     /**
@@ -209,7 +247,7 @@ public class ArchiveServiceImpl implements ArchiveService {
         }
 
         byte[] fileBytes = Files.readAllBytes(filePath);
-        String lowerName = template.getFileName().toLowerCase();
+        String lowerName = template.getFileOriginalName() != null ? template.getFileOriginalName().toLowerCase() : filePath.getFileName().toString().toLowerCase();
 
         if (lowerName.endsWith(".docx")) {
             return replaceDocxPlaceholders(fileBytes, placeholders);
@@ -417,7 +455,7 @@ public class ArchiveServiceImpl implements ArchiveService {
         map.put("khdz", decrypt(project.getCustomerAddress()));
         map.put("lxr", decrypt(project.getCustomerContact()));
         map.put("lxdh", decrypt(project.getCustomerPhone()));
-        map.put("rwbh", project.getTaskNo());
+        map.put("rwbh", project.getProjectNo()); // taskNo已删除，使用项目编号替代
         map.put("xtmc", project.getSystemNameMerged());
         map.put("xtsl", systems != null ? String.valueOf(systems.size()) : "0");
 
@@ -512,5 +550,15 @@ public class ArchiveServiceImpl implements ArchiveService {
     private String decrypt(String value) {
         if (value == null || value.isEmpty()) return "";
         try { return sm4Util.decrypt(value); } catch (Exception e) { return value; }
+    }
+
+    private int parseVersionNum(String version) {
+        if (version == null || version.isEmpty()) return 1;
+        try {
+            String num = version.replaceAll("[^0-9]", "");
+            return num.isEmpty() ? 1 : Integer.parseInt(num);
+        } catch (Exception e) {
+            return 1;
+        }
     }
 }

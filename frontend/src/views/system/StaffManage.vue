@@ -4,7 +4,21 @@
       <template #header>
         <div class="card-header">
           <span class="title">项目人员清单</span>
-          <el-button type="primary" :icon="Plus" @click="openDialog()">新增人员</el-button>
+          <div style="display:flex;gap:8px">
+            <el-button :icon="Download" @click="handleExport">导出</el-button>
+            <el-dropdown @command="handleImportCommand">
+              <el-button :icon="Upload">
+                导入<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="template">下载导入模板</el-dropdown-item>
+                  <el-dropdown-item command="import">上传Excel导入</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+            <el-button type="primary" :icon="Plus" @click="openDialog()">新增人员</el-button>
+          </div>
         </div>
       </template>
 
@@ -139,13 +153,29 @@
         <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 导入结果 -->
+    <el-dialog v-model="importResultVisible" title="导入结果" width="500px">
+      <el-descriptions :column="3" border size="small" style="margin-bottom:12px">
+        <el-descriptions-item label="总计">{{ importResult.totalCount }}</el-descriptions-item>
+        <el-descriptions-item label="成功"><el-text type="success">{{ importResult.successCount }}</el-text></el-descriptions-item>
+        <el-descriptions-item label="跳过"><el-text :type="importResult.skipCount > 0 ? 'danger' : 'info'">{{ importResult.skipCount }}</el-text></el-descriptions-item>
+      </el-descriptions>
+      <div v-if="importResult.errors && importResult.errors.length > 0" style="max-height:200px;overflow-y:auto">
+        <div v-for="(err,i) in importResult.errors" :key="i" style="color:#E6A23C;font-size:13px;padding:4px 0">{{ err }}</div>
+      </div>
+      <template #footer><el-button type="primary" @click="importResultVisible=false">确定</el-button></template>
+    </el-dialog>
+
+    <!-- 隐藏文件输入 -->
+    <input ref="fileInputRef" type="file" accept=".xlsx,.xls" style="display:none" @change="handleFileChange" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Refresh, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus, Search, Refresh, Edit, Delete, Download, Upload, ArrowDown } from '@element-plus/icons-vue'
 import { staffApi } from '@/api/staff'
 import dayjs from 'dayjs'
 
@@ -230,6 +260,69 @@ async function handleDelete(row: any) {
   await staffApi.delete(row.id)
   ElMessage.success('删除成功')
   loadData()
+}
+
+async function handleExport() {
+  try {
+    ElMessage.info('正在导出，请稍候...')
+    const res = await staffApi.export(queryForm)
+    const blobData = (res as any)?.data || res
+    const blob = blobData instanceof Blob ? blobData : new Blob([blobData], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `人员清单_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.xlsx`
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (e: any) {
+    ElMessage.error('导出失败: ' + (e.message || '未知错误'))
+  }
+}
+
+const fileInputRef = ref<HTMLInputElement>()
+const importResultVisible = ref(false)
+const importResult = ref<any>({})
+
+function handleImportCommand(cmd: string) {
+  if (cmd === 'template') downloadImportTemplate()
+  else if (cmd === 'import') fileInputRef.value?.click()
+}
+
+async function downloadImportTemplate() {
+  try {
+    const res = await staffApi.downloadTemplate()
+    const blobData = (res as any)?.data || res
+    const blob = blobData instanceof Blob ? blobData : new Blob([blobData], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = '人员导入模板.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e: any) {
+    ElMessage.error('下载模板失败')
+  }
+}
+
+async function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!input.files || input.files.length === 0) return
+  const file = input.files[0]
+  input.value = ''
+  try {
+    ElMessage.info('正在导入，请稍候...')
+    const res: any = await staffApi.importStaff(file)
+    importResult.value = res.data
+    importResultVisible.value = true
+    loadData()
+  } catch (e: any) {
+    ElMessage.error('导入失败: ' + (e.message || '未知错误'))
+  }
 }
 </script>
 

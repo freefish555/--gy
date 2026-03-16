@@ -30,7 +30,6 @@
               <span v-else>--</span>
             </el-descriptions-item>
             <el-descriptions-item label="所属年份">{{ detail.yearBelong }}</el-descriptions-item>
-            <el-descriptions-item label="任务书编号">{{ detail.taskNo }}</el-descriptions-item>
             <el-descriptions-item label="业务人员">{{ detail.businessPerson }}</el-descriptions-item>
             <el-descriptions-item label="项目地区">{{ detail.projectRegion }}</el-descriptions-item>
             <el-descriptions-item label="纸质归档">
@@ -97,6 +96,8 @@ const activeTab = ref('info')
 const detail = ref<any>({})
 
 const roleLabels: Record<string, string> = {
+  project_manager: '项目经理',
+  project_leader: '项目负责人',
   registered_evaluator: '登记测评师',
   actual_member: '实际测评人员',
   survey_editor: '调研表编制人',

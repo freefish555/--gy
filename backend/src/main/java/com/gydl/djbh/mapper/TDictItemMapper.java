@@ -21,4 +21,8 @@ public interface TDictItemMapper extends BaseMapper<TDictItem> {
 
     @Delete("DELETE FROM t_dict_item WHERE dict_id = #{dictId}")
     void deleteByDictId(@Param("dictId") Long dictId);
+
+    @Select("SELECT i.id FROM t_dict_item i INNER JOIN t_dict d ON i.dict_id = d.id " +
+            "WHERE d.dict_code = #{dictCode} AND i.item_label = #{label} AND i.status = 1 LIMIT 1")
+    Long findIdByLabelAndDictCode(@Param("label") String label, @Param("dictCode") String dictCode);
 }
