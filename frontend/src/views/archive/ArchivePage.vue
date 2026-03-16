@@ -122,8 +122,7 @@ async function searchProjects() {
   try {
     const res: any = await projectApi.list({
       pageNum: 1, pageSize: 20,
-      projectName: queryForm.value.keyword,
-      projectNo: queryForm.value.keyword,
+      keyword: queryForm.value.keyword,
       yearBelong: queryForm.value.yearBelong,
     })
     projectList.value = res.data?.records || []

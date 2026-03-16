@@ -7,7 +7,7 @@
           <img src="/gydllogo.png" alt="国云电力Logo" class="logo-img" />
         </div>
         <h1 class="system-title">网络安全等级保护测评</h1>
-        <p class="system-subtitle">项目管理及材料规定管理系统</p>
+        <p class="system-subtitle">项目管理及材料归档管理系统</p>
       </div>
 
       <!-- 普通登录表单 -->

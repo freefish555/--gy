@@ -68,12 +68,14 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public PageResult<ProjectDetailResp> page(ProjectQueryReq req) {
-        // For encrypted fields (projectName, customerName) or member name filters,
+        // For encrypted fields (projectName, customerName) or member name filters or recordNo (sub-table),
         // we fetch all matching other criteria then filter in memory
         boolean hasNameFilter = (req.getProjectName() != null && !req.getProjectName().isEmpty())
                 || (req.getCustomerName() != null && !req.getCustomerName().isEmpty())
                 || (req.getMemberName() != null && !req.getMemberName().isEmpty())
-                || (req.getProjectLeaderName() != null && !req.getProjectLeaderName().isEmpty());
+                || (req.getProjectLeaderName() != null && !req.getProjectLeaderName().isEmpty())
+                || (req.getRecordNo() != null && !req.getRecordNo().isEmpty())
+                || (req.getKeyword() != null && !req.getKeyword().isEmpty());
 
         if (hasNameFilter) {
             // Fetch all (ignore pagination for now) then filter in memory
@@ -102,6 +104,30 @@ public class ProjectServiceImpl implements ProjectService {
                 if (req.getProjectLeaderName() != null && !req.getProjectLeaderName().isEmpty()) {
                     String leaderName = decryptIfNotNull(p.getProjectLeaderName());
                     if (leaderName == null || !normalizeName(leaderName).contains(normalizeName(req.getProjectLeaderName()))) continue;
+                }
+                // 按备案编号过滤（子表 t_project_system.record_no，明文，模糊匹配）
+                if (req.getRecordNo() != null && !req.getRecordNo().isEmpty()) {
+                    List<com.gydl.djbh.entity.TProjectSystem> sysList = systemMapper.findByProjectId(p.getId());
+                    boolean matched = sysList.stream().anyMatch(sys ->
+                            sys.getRecordNo() != null && sys.getRecordNo().contains(req.getRecordNo()));
+                    if (!matched) continue;
+                }
+                // keyword：项目编号 OR 解密后项目名称（模糊匹配，用于归档管理快速搜索）
+                if (req.getKeyword() != null && !req.getKeyword().isEmpty()) {
+                    String kw = normalizeName(req.getKeyword());
+                    boolean noMatch = true;
+                    // 编号匹配（明文）
+                    if (p.getProjectNo() != null && normalizeName(p.getProjectNo()).contains(kw)) {
+                        noMatch = false;
+                    }
+                    // 名称匹配（解密后）
+                    if (noMatch) {
+                        String decryptedName = decryptIfNotNull(p.getProjectName());
+                        if (decryptedName != null && normalizeName(decryptedName).contains(kw)) {
+                            noMatch = false;
+                        }
+                    }
+                    if (noMatch) continue;
                 }
                 filtered.add(p);
             }

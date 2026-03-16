@@ -38,6 +38,8 @@ public class ProjectQueryReq {
     private String contractDateTo;
     /** 所属年份 */
     private String yearBelong;
+    /** 关键词（模糊，同时匹配项目编号OR项目名称，用于归档管理等快速搜索） */
+    private String keyword;
     /** 项目组成员姓名（模糊，解密后匹配，筛选role_type=registered_evaluator的成员） */
     private String memberName;
     /** 项目负责人姓名（模糊，解密后匹配） */
