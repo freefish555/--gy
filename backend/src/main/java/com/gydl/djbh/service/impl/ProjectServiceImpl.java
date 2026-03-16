@@ -94,9 +94,9 @@ public class ProjectServiceImpl implements ProjectService {
                     String decrypted = decryptIfNotNull(p.getCustomerName());
                     if (decrypted == null || !normalizeName(decrypted).contains(normalizeName(req.getCustomerName()))) continue;
                 }
-                // 按项目组成员姓名过滤（project_leader角色）
+                // 按项目组成员姓名过滤（registered_evaluator角色）
                 if (req.getMemberName() != null && !req.getMemberName().isEmpty()) {
-                    if (!projectHasMemberByName(p.getId(), req.getMemberName(), "project_leader")) continue;
+                    if (!projectHasMemberByName(p.getId(), req.getMemberName(), "registered_evaluator")) continue;
                 }
                 // 按项目负责人姓名过滤（project_leader角色，也包含project_manager）
                 if (req.getProjectLeaderName() != null && !req.getProjectLeaderName().isEmpty()) {
@@ -765,19 +765,22 @@ public class ProjectServiceImpl implements ProjectService {
         int l3 = p.getSysCountL3() != null ? p.getSysCountL3() : 0;
         resp.setSysCount(l2 + l3);
 
-        // 项目组成员（project_leader角色）
+        // 项目组成员（registered_evaluator角色）
         List<TProjectMember> memberList4Resp = memberMapper.findByProjectId(p.getId());
-        List<String> projectLeaderNames = new ArrayList<>();
+        List<String> registeredEvaluatorNames = new ArrayList<>();
+        Set<Long> seenStaffIds = new java.util.LinkedHashSet<>();
         for (TProjectMember m : memberList4Resp) {
-            if ("project_leader".equals(m.getRoleType()) && m.getMemberId() != null) {
-                com.gydl.djbh.entity.TStaff staff = staffMapper.selectById(m.getMemberId());
-                if (staff != null) {
-                    String name = decryptIfNotNull(staff.getRealName());
-                    if (name != null && !name.isEmpty()) projectLeaderNames.add(name);
+            if ("registered_evaluator".equals(m.getRoleType()) && m.getMemberId() != null) {
+                if (seenStaffIds.add(m.getMemberId())) {
+                    com.gydl.djbh.entity.TStaff staff = staffMapper.selectById(m.getMemberId());
+                    if (staff != null) {
+                        String name = decryptIfNotNull(staff.getRealName());
+                        if (name != null && !name.isEmpty()) registeredEvaluatorNames.add(name);
+                    }
                 }
             }
         }
-        resp.setProjectGroupMembers(String.join("、", projectLeaderNames));
+        resp.setProjectGroupMembers(String.join("、", registeredEvaluatorNames));
 
         if (loadDetail) {
             // 被测系统

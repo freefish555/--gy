@@ -65,7 +65,7 @@ public class ProjectDetailResp {
     // 系统总数（L2 + L3）
     private Integer sysCount;
 
-    // 项目组成员（role_type=project_leader的成员姓名，逗号分隔）
+    // 项目组成员（role_type=registered_evaluator的成员姓名，顿号分隔）
     private String projectGroupMembers;
 
     // 被测系统列表
