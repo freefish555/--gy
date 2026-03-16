@@ -8,6 +8,7 @@ import com.gydl.djbh.entity.TUser;
 import com.gydl.djbh.exception.BusinessException;
 import com.gydl.djbh.mapper.TRoleMapper;
 import com.gydl.djbh.mapper.TUserMapper;
+import com.gydl.djbh.service.SysConfigService;
 import com.gydl.djbh.utils.SecurityContextUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,6 +33,33 @@ public class UserController {
     private final TRoleMapper roleMapper;
     private final PasswordEncoder passwordEncoder;
     private final SM4Util sm4Util;
+    private final SysConfigService sysConfigService;
+
+    /**
+     * 密码复杂度校验（与AuthServiceImpl保持一致）
+     */
+    private void validatePasswordComplexity(String password) {
+        int minLength = sysConfigService.getIntConfig("PASSWORD_MIN_LENGTH", 8);
+        if (password.length() < minLength) {
+            throw new BusinessException("密码长度不能少于" + minLength + "位");
+        }
+        boolean requireUpper = sysConfigService.getBoolConfig("PASSWORD_REQUIRE_UPPER", true);
+        if (requireUpper && !password.matches(".*[A-Z].*")) {
+            throw new BusinessException("密码必须包含大写字母");
+        }
+        boolean requireLower = sysConfigService.getBoolConfig("PASSWORD_REQUIRE_LOWER", true);
+        if (requireLower && !password.matches(".*[a-z].*")) {
+            throw new BusinessException("密码必须包含小写字母");
+        }
+        boolean requireNumber = sysConfigService.getBoolConfig("PASSWORD_REQUIRE_NUMBER", true);
+        if (requireNumber && !password.matches(".*[0-9].*")) {
+            throw new BusinessException("密码必须包含数字");
+        }
+        boolean requireSpecial = sysConfigService.getBoolConfig("PASSWORD_REQUIRE_SPECIAL", false);
+        if (requireSpecial && !password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?].*")) {
+            throw new BusinessException("密码必须包含特殊字符");
+        }
+    }
 
     /**
      * 获取所有角色列表（供下拉选择）
@@ -103,9 +131,10 @@ public class UserController {
         if (realName == null || realName.trim().isEmpty()) {
             throw new BusinessException("真实姓名不能为空");
         }
-        if (password == null || password.length() < 8) {
-            throw new BusinessException("密码长度不能少于8位");
+        if (password == null || password.isEmpty()) {
+            throw new BusinessException("密码不能为空");
         }
+        validatePasswordComplexity(password);
         if (roleIdObj == null) {
             throw new BusinessException("请选择角色");
         }
@@ -181,9 +210,10 @@ public class UserController {
         if (user == null) throw new BusinessException("用户不存在");
 
         String newPassword = body.get("newPassword");
-        if (newPassword == null || newPassword.length() < 8) {
-            throw new BusinessException("密码长度不能少于8位");
+        if (newPassword == null || newPassword.isEmpty()) {
+            throw new BusinessException("密码不能为空");
         }
+        validatePasswordComplexity(newPassword);
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setFirstLogin(1);
         user.setPasswordChangedAt(LocalDateTime.now());

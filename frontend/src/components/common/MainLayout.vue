@@ -63,7 +63,7 @@
         <!-- 系统设置 -->
         <el-sub-menu
           index="system"
-          v-if="authStore.hasAnyPermission('system:config','system:user','system:staff','system:device','system:dict','archive:template')"
+          v-if="authStore.hasAnyPermission('system:config','system:user','system:staff','system:dict','archive:template')"
         >
           <template #title>
             <el-icon><Setting /></el-icon>
@@ -80,10 +80,6 @@
           <el-menu-item v-if="authStore.hasPermission('system:staff')" index="/system/staff">
             <el-icon><Avatar /></el-icon>
             <span>项目人员清单</span>
-          </el-menu-item>
-          <el-menu-item v-if="authStore.hasPermission('system:device')" index="/system/device">
-            <el-icon><Monitor /></el-icon>
-            <span>测评工具清单</span>
           </el-menu-item>
           <el-menu-item v-if="authStore.hasPermission('system:dict')" index="/system/dict">
             <el-icon><Menu /></el-icon>
@@ -195,17 +191,27 @@
   </el-dialog>
 
   <!-- 双因子认证弹窗 -->
-  <el-dialog v-model="showTotpDialog" title="绑定双因子认证" width="420px">
-    <div v-if="totpQrCode" style="text-align:center">
-      <p style="margin-bottom:12px;color:#606266">请使用 Google Authenticator 扫描以下二维码：</p>
-      <img :src="totpQrCode" style="width:200px;height:200px" />
-      <p style="margin-top:12px;font-size:12px;color:#909399">密钥：{{ totpSecret }}</p>
+  <el-dialog v-model="showTotpDialog" title="绑定双因子认证" width="480px" @close="resetTotpDialog">
+    <div v-if="totpStep === 1" style="text-align:center">
+      <el-alert type="info" :closable="false" style="margin-bottom:16px;text-align:left">
+        请使用 Google Authenticator 或 Authy 扫描以下二维码，然后输入验证码完成绑定。
+      </el-alert>
+      <img :src="totpQrCode" style="width:200px;height:200px;border:1px solid #eee" />
+      <p style="margin-top:8px;font-size:12px;color:#909399">手动输入密钥：{{ totpSecret }}</p>
+      <el-form style="margin-top:16px">
+        <el-form-item label="验证码" label-width="70px">
+          <el-input v-model="totpConfirmCode" placeholder="请输入6位验证码" maxlength="6" style="width:200px" />
+        </el-form-item>
+      </el-form>
     </div>
-    <div v-else style="text-align:center;color:#909399;padding:20px">
-      暂未配置双因子认证，请联系管理员
+    <div v-else-if="totpStep === 0" style="text-align:center;color:#909399;padding:20px">
+      <p>正在加载二维码...</p>
     </div>
     <template #footer>
-      <el-button type="primary" @click="showTotpDialog=false">关闭</el-button>
+      <el-button @click="showTotpDialog=false">取消</el-button>
+      <el-button type="primary" :loading="totpLoading" @click="confirmTotpBind" :disabled="!totpConfirmCode || totpConfirmCode.length !== 6">
+        确认绑定
+      </el-button>
     </template>
   </el-dialog>
 
@@ -235,7 +241,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Folder, List, Plus, TrendCharts, Document, Files, Setting, Tools,
-  UserFilled, Avatar, Monitor, Menu, CopyDocument, Key, Tickets,
+  UserFilled, Avatar, Menu, CopyDocument, Key, Tickets,
   Connection, Fold, Expand, ArrowDown, User, Lock, SwitchButton
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
@@ -300,6 +306,16 @@ const showProfile = ref(false)
 const showTotpDialog = ref(false)
 const totpQrCode = ref('')
 const totpSecret = ref('')
+const totpStep = ref(0)
+const totpConfirmCode = ref('')
+const totpLoading = ref(false)
+
+function resetTotpDialog() {
+  totpQrCode.value = ''
+  totpSecret.value = ''
+  totpStep.value = 0
+  totpConfirmCode.value = ''
+}
 
 function handleUserCommand(cmd: string) {
   switch (cmd) {
@@ -324,13 +340,36 @@ function handleUserCommand(cmd: string) {
 }
 
 async function loadTotpQr() {
+  resetTotpDialog()
+  showTotpDialog.value = true
   try {
-    const res: any = await request.get('/auth/totp/setup')
+    const res: any = await request.post('/auth/totp/bind')
     totpQrCode.value = res.data?.qrCode || ''
     totpSecret.value = res.data?.secret || ''
-    showTotpDialog.value = true
+    totpStep.value = 1
   } catch (e: any) {
-    ElMessage.info('双因子认证设置: ' + (e.message || '请联系管理员'))
+    showTotpDialog.value = false
+    ElMessage.error('获取双因子认证信息失败: ' + (e.message || '请联系管理员'))
+  }
+}
+
+async function confirmTotpBind() {
+  if (!totpConfirmCode.value || totpConfirmCode.value.length !== 6) {
+    ElMessage.warning('请输入6位验证码')
+    return
+  }
+  totpLoading.value = true
+  try {
+    await request.post('/auth/totp/confirm', {
+      secret: totpSecret.value,
+      code: parseInt(totpConfirmCode.value)
+    })
+    ElMessage.success('双因子认证绑定成功')
+    showTotpDialog.value = false
+  } catch (e: any) {
+    ElMessage.error('绑定失败: ' + (e.message || '验证码错误，请重试'))
+  } finally {
+    totpLoading.value = false
   }
 }
 

@@ -45,9 +45,14 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
     @Override
     public PageResult<Map<String, Object>> page(StaffQueryReq req) {
         int offset = (req.getPage() - 1) * req.getPageSize();
-        List<TStaff> list = baseMapper.findPage(req.getKeyword(), req.getRoleLevel(),
+        // 兼容前端 realName 字段作为搜索关键词
+        String keyword = req.getKeyword();
+        if ((keyword == null || keyword.isEmpty()) && req.getRealName() != null && !req.getRealName().isEmpty()) {
+            keyword = req.getRealName();
+        }
+        List<TStaff> list = baseMapper.findPage(keyword, req.getRoleLevel(),
                 req.getStatus(), offset, req.getPageSize());
-        long total = baseMapper.countPage(req.getKeyword(), req.getRoleLevel(), req.getStatus());
+        long total = baseMapper.countPage(keyword, req.getRoleLevel(), req.getStatus());
 
         List<Map<String, Object>> result = new ArrayList<>();
         for (TStaff s : list) {
@@ -133,7 +138,12 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
         req.setPage(1);
         req.setPageSize(10000);
         int offset = 0;
-        List<TStaff> list = baseMapper.findPage(req.getKeyword(), req.getRoleLevel(),
+        // 兼容前端 realName 字段作为搜索关键词
+        String keyword = req.getKeyword();
+        if ((keyword == null || keyword.isEmpty()) && req.getRealName() != null && !req.getRealName().isEmpty()) {
+            keyword = req.getRealName();
+        }
+        List<TStaff> list = baseMapper.findPage(keyword, req.getRoleLevel(),
                 req.getStatus(), offset, 10000);
 
         try (XSSFWorkbook wb = new XSSFWorkbook()) {

@@ -310,12 +310,13 @@ public class ArchiveServiceImpl implements ArchiveService {
     /**
      * 替换段落中的占位符
      * 注意：Word可能将一个{{xmbh}}拆分到多个Run中，需要合并后再替换
+     * 支持三种格式：{{xmbh}}、${xmbh}、裸占位符xmbh（模板直接使用变量名）
      */
     private void replaceParagraphPlaceholders(XWPFParagraph paragraph, Map<String, String> placeholders) {
         List<XWPFRun> runs = paragraph.getRuns();
         if (runs == null || runs.isEmpty()) return;
 
-        // 将所有Run文本合并，检查是否含有占位符
+        // 将所有Run文本合并
         StringBuilder fullText = new StringBuilder();
         for (XWPFRun run : runs) {
             String text = run.getText(0);
@@ -323,7 +324,19 @@ public class ArchiveServiceImpl implements ArchiveService {
         }
 
         String combined = fullText.toString();
+        if (combined.isEmpty()) return;
+
+        // 检查是否含有任何占位符（{{...}}、${...} 或 裸变量名）
         boolean hasPlaceholder = combined.contains("{{") || combined.contains("${");
+        if (!hasPlaceholder) {
+            // 检查是否含有裸占位符（模板直接使用变量名，如 xmbh、xmmc 等）
+            for (String key : placeholders.keySet()) {
+                if (combined.contains(key)) {
+                    hasPlaceholder = true;
+                    break;
+                }
+            }
+        }
         if (!hasPlaceholder) return;
 
         // 执行替换
@@ -331,10 +344,13 @@ public class ArchiveServiceImpl implements ArchiveService {
         for (Map.Entry<String, String> entry : placeholders.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue() != null ? entry.getValue() : "";
+            // 先替换带括号格式（优先级高）
             replaced = replaced.replace("{{" + key + "}}", value);
             replaced = replaced.replace("${" + key + "}", value);
             // 也尝试带空格的格式
             replaced = replaced.replace("{{ " + key + " }}", value);
+            // 最后替换裸占位符（整词匹配，避免误替换）
+            replaced = replaced.replace(key, value);
         }
 
         if (!replaced.equals(combined)) {

@@ -18,6 +18,10 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
         this.strictInsertFill(metaObject, "createdAt", LocalDateTime.class, now);
         this.strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, now);
         this.strictInsertFill(metaObject, "uploadAt", LocalDateTime.class, now);
+        // 登录日志时间字段
+        this.strictInsertFill(metaObject, "loginAt", LocalDateTime.class, now);
+        // 操作日志时间字段
+        this.strictInsertFill(metaObject, "opAt", LocalDateTime.class, now);
     }
 
     @Override
