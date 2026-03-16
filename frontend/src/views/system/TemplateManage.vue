@@ -29,7 +29,7 @@
           <template #default="{ row }">
             <el-button type="primary" link size="small" :icon="Download" @click="download(row)">下载</el-button>
             <el-upload
-              :action="`/api/archive/template/${row.id}/replace`"
+              :action="`/api/archive/templates/${row.id}/replace`"
               :headers="uploadHeaders"
               :on-success="() => { ElMessage.success('替换成功'); loadData() }"
               :show-file-list="false"
@@ -54,7 +54,7 @@ import { archiveApi } from '@/api/system'
 const loading = ref(false)
 const templateList = ref<any[]>([])
 
-const uploadUrl = '/api/archive/template/upload'
+const uploadUrl = '/api/archive/templates/upload'
 const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`
 }))

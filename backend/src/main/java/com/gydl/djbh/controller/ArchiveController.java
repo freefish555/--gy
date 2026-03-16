@@ -62,6 +62,17 @@ public class ArchiveController {
         return Result.ok("删除成功");
     }
 
+    /** 替换模板文件 */
+    @PostMapping("/templates/{id}/replace")
+    @PreAuthorize("hasAuthority('archive:template')")
+    public Result<?> replaceTemplate(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) throws Exception {
+        String fname = file.getOriginalFilename() != null ? file.getOriginalFilename() : "template.docx";
+        archiveService.replaceTemplate(id, file.getBytes(), fname);
+        return Result.ok("替换成功");
+    }
+
     /** 生成归档材料（返回JSON结果，前端再调下载接口） */
     @PostMapping("/generate/{projectId}")
     @PreAuthorize("hasAnyAuthority('archive:create')")

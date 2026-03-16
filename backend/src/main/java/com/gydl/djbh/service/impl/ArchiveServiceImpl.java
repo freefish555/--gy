@@ -192,6 +192,35 @@ public class ArchiveServiceImpl implements ArchiveService {
     }
 
     @Override
+    public void replaceTemplate(Long id, byte[] fileBytes, String originalFilename) {
+        TArchiveTemplate template = templateMapper.selectById(id);
+        if (template == null) throw new BusinessException("模板不存在");
+
+        // 保存新文件
+        Path dir = Paths.get(templateDir);
+        try {
+            Files.createDirectories(dir);
+        } catch (Exception e) {
+            throw new BusinessException("创建模板目录失败");
+        }
+        String storedName = System.currentTimeMillis() + "_" + originalFilename;
+        Path filePath = dir.resolve(storedName);
+        try {
+            Files.write(filePath, fileBytes);
+        } catch (Exception e) {
+            throw new BusinessException("保存模板文件失败: " + e.getMessage());
+        }
+
+        // 更新数据库记录
+        template.setFileOriginalName(originalFilename);
+        template.setFilePath(filePath.toString());
+        template.setFileSize((long) fileBytes.length);
+        template.setVersion("v" + (parseVersionNum(template.getVersion()) + 1) + ".0");
+        template.setStatus(1);
+        templateMapper.updateById(template);
+    }
+
+    @Override
     public List<Map<String, Object>> listArchiveHistory(Long projectId) {
         // 返回归档记录（如果有归档日志表，此处扩展）
         return new ArrayList<>();

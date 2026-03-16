@@ -47,6 +47,11 @@ public interface ArchiveService {
     void deleteTemplate(Long id);
 
     /**
+     * 替换归档模板文件（更新指定ID模板的文件内容）
+     */
+    void replaceTemplate(Long id, byte[] fileBytes, String originalFilename);
+
+    /**
      * 获取归档历史记录
      */
     List<Map<String, Object>> listArchiveHistory(Long projectId);

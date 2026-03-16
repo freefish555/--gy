@@ -246,6 +246,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import request from '@/utils/request'
+import QRCode from 'qrcode'
 
 const route = useRoute()
 const router = useRouter()
@@ -344,8 +345,14 @@ async function loadTotpQr() {
   showTotpDialog.value = true
   try {
     const res: any = await request.post('/auth/totp/bind')
-    totpQrCode.value = res.data?.qrCode || ''
+    const qrUrl = res.data?.qrUrl || res.data?.qrCode || ''
     totpSecret.value = res.data?.secret || ''
+    // 使用 qrcode 库将 otpauth:// URL 生成 base64 图片
+    if (qrUrl) {
+      totpQrCode.value = await QRCode.toDataURL(qrUrl, { width: 200, margin: 1 })
+    } else {
+      totpQrCode.value = ''
+    }
     totpStep.value = 1
   } catch (e: any) {
     showTotpDialog.value = false
