@@ -27,4 +27,10 @@ public interface TUserMapper extends BaseMapper<TUser> {
             "LEFT JOIN t_role r ON u.role_id = r.id " +
             "WHERE u.id = #{id}")
     TUser findByIdWithRole(@Param("id") Long id);
+
+    /**
+     * 查询用户完整信息（含 password_hash 字段，用于修改密码时的原密码校验）
+     */
+    @Select("SELECT * FROM t_user WHERE id = #{id}")
+    TUser selectByIdWithPassword(@Param("id") Long id);
 }

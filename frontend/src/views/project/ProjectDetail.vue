@@ -5,7 +5,11 @@
         <div class="card-header">
           <span class="title">项目详情</span>
           <div>
-            <el-button :icon="Edit" type="primary" @click="$router.push(`/project/edit/${projectId}`)">编辑</el-button>
+            <el-button
+              v-if="canEdit"
+              :icon="Edit" type="primary"
+              @click="$router.push(`/project/edit/${projectId}`)"
+            >编辑</el-button>
             <el-button :icon="ArrowLeft" @click="$router.back()">返回</el-button>
           </div>
         </div>
@@ -87,13 +91,24 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Edit } from '@element-plus/icons-vue'
 import { projectApi } from '@/api/project'
+import { useAuthStore } from '@/store/auth'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const projectId = computed(() => Number(route.params.id))
 const loading = ref(false)
 const activeTab = ref('info')
 const detail = ref<any>({})
+
+/** 当前用户是否有编辑权限：拥有编辑所有项目权限，或拥有编辑自己项目权限且该项目是自己创建的 */
+const canEdit = computed(() => {
+  if (authStore.hasPermission('project:update:all')) return true
+  if (authStore.hasPermission('project:update:own')) {
+    return detail.value.createdBy === authStore.userInfo?.userId
+  }
+  return false
+})
 
 const roleLabels: Record<string, string> = {
   project_manager: '项目经理',

@@ -123,7 +123,8 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void changePassword(String oldPassword, String newPassword) {
         Long userId = SecurityContextUtil.getCurrentUserId();
-        TUser user = userMapper.selectById(userId);
+        // 使用 selectByIdWithPassword 以确保 passwordHash 字段被查出
+        TUser user = userMapper.selectByIdWithPassword(userId);
 
         if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
             throw new BusinessException("原密码错误");

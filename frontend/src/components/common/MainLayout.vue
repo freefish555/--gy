@@ -18,8 +18,11 @@
         @select="handleMenuSelect"
         class="sidebar-menu"
       >
-        <!-- 项目管理 -->
-        <el-sub-menu index="project">
+        <!-- 项目管理（安全管理员不显示整个项目管理菜单） -->
+        <el-sub-menu
+          index="project"
+          v-if="!isSecurityAdmin"
+        >
           <template #title>
             <el-icon><Folder /></el-icon>
             <span>项目管理</span>
@@ -72,7 +75,8 @@
             <el-icon><Tools /></el-icon>
             <span>系统参数设置</span>
           </el-menu-item>
-          <el-menu-item v-if="authStore.hasPermission('system:user')" index="/system/user">
+          <!-- 安全管理员不显示管理员设置菜单 -->
+          <el-menu-item v-if="authStore.hasPermission('system:user') && !isSecurityAdmin" index="/system/user">
             <el-icon><UserFilled /></el-icon>
             <span>管理员设置</span>
           </el-menu-item>
@@ -251,6 +255,9 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const isCollapsed = ref(false)
+
+/** 是否为安全管理员角色（用于控制菜单显示） */
+const isSecurityAdmin = computed(() => authStore.userInfo?.roleCode === 'SECURITY_ADMIN')
 
 // 菜单导航（替代 el-menu 的 router prop，避免注入问题）
 function handleMenuSelect(index: string) {
