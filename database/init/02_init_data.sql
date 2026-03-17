@@ -83,7 +83,7 @@ INSERT INTO t_sys_config (config_key, config_value, config_desc, is_encrypted) V
 INSERT INTO t_role (role_code, role_name, role_desc, is_system, status) VALUES
 ('SUPER_ADMIN',     '超级管理员', '系统全部权限，不可删除', 1, 1),
 ('PROJECT_MANAGER', '项目管理员', '可新增项目、编辑所有项目、归档管理', 1, 1),
-('NORMAL',          '普通角色',   '可新增项目、查看所有项目、编辑自己创建的项目', 1, 1),
+('NORMAL',          '普通角色',   '可新增项目、查看参与的项目、编辑自己创建的项目、生成及下载归档材料', 1, 1),
 ('SECURITY_ADMIN',  '安全管理员', '可查看项目、配置系统安全设置', 1, 1),
 ('LOG_ADMIN',       '日志管理员', '可查看日志、配置日志服务器', 1, 1);
 
@@ -134,7 +134,8 @@ WHERE perm_code IN ('project:view:all','project:create','project:update:all','pr
 -- 普通角色
 INSERT INTO t_role_permission (role_id, permission_id)
 SELECT (SELECT id FROM t_role WHERE role_code='NORMAL'), id FROM t_permission
-WHERE perm_code IN ('project:view:own','project:create','project:update:own');
+WHERE perm_code IN ('project:view:own','project:create','project:update:own',
+                    'archive:create','archive:download');
 
 -- 安全管理员
 INSERT INTO t_role_permission (role_id, permission_id)
