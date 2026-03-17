@@ -785,6 +785,7 @@ public class ProjectServiceImpl implements ProjectService {
         resp.setReportMailNo(p.getReportMailNo());
         resp.setCreatedAt(p.getCreatedAt());
         resp.setUpdatedAt(p.getUpdatedAt());
+        resp.setCreatedBy(p.getCreatedBy());
 
         // 系统总数 = 2级 + 3级
         int l2 = p.getSysCountL2() != null ? p.getSysCountL2() : 0;

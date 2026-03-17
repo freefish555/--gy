@@ -18,16 +18,19 @@
         @select="handleMenuSelect"
         class="sidebar-menu"
       >
-        <!-- 项目管理（安全管理员不显示整个项目管理菜单） -->
+        <!-- 项目管理（需有项目相关权限，且安全管理员、日志管理员不显示） -->
         <el-sub-menu
           index="project"
-          v-if="!isSecurityAdmin"
+          v-if="!isSecurityAdmin && authStore.hasAnyPermission('project:view:all','project:view:own','project:create','project:stats')"
         >
           <template #title>
             <el-icon><Folder /></el-icon>
             <span>项目管理</span>
           </template>
-          <el-menu-item index="/project/list">
+          <el-menu-item
+            index="/project/list"
+            v-if="authStore.hasAnyPermission('project:view:all','project:view:own')"
+          >
             <el-icon><List /></el-icon>
             <span>项目总览</span>
           </el-menu-item>

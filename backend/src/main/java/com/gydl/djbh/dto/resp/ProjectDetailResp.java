@@ -58,6 +58,9 @@ public class ProjectDetailResp {
     private LocalDate reportMailDate;
     private String reportMailNo;
 
+    // 创建人（用于前端判断当前用户是否为项目创建者）
+    private Long createdBy;
+
     // 时间戳
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
