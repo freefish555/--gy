@@ -345,7 +345,8 @@ public class ArchiveServiceImpl implements ArchiveService {
 
     /**
      * 替换 .xlsx/.xls 文件中的占位符
-     * 遍历所有Sheet的所有单元格，替换 {{key}}、${key} 或裸变量名
+     * 遍历所有Sheet的所有单元格，替换 {{key}}、${key}、裸变量名 三种格式
+     * 同时安全处理 STRING / FORMULA / BLANK 等各类单元格类型
      */
     private byte[] replaceXlsxPlaceholders(byte[] fileBytes, Map<String, String> placeholders) throws Exception {
         try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(fileBytes))) {
@@ -353,20 +354,38 @@ public class ArchiveServiceImpl implements ArchiveService {
                 Sheet sheet = workbook.getSheetAt(si);
                 for (Row row : sheet) {
                     for (Cell cell : row) {
-                        if (cell.getCellType() == CellType.STRING) {
-                            String original = cell.getStringCellValue();
-                            if (original == null || original.isEmpty()) continue;
-                            String replaced = original;
-                            for (Map.Entry<String, String> entry : placeholders.entrySet()) {
-                                String key = entry.getKey();
-                                String value = entry.getValue() != null ? entry.getValue() : "";
-                                replaced = replaced.replace("{{" + key + "}}", value);
-                                replaced = replaced.replace("${" + key + "}", value);
-                                replaced = replaced.replace("{{ " + key + " }}", value);
+                        // 获取单元格实际类型（FORMULA时取缓存值类型）
+                        CellType effectiveType = cell.getCellType();
+                        if (effectiveType == CellType.FORMULA) {
+                            effectiveType = cell.getCachedFormulaResultType();
+                        }
+                        // 只处理字符串类型单元格
+                        if (effectiveType != CellType.STRING) continue;
+
+                        String original;
+                        try {
+                            original = cell.getStringCellValue();
+                        } catch (Exception e) {
+                            continue; // 获取值异常时跳过
+                        }
+                        if (original == null || original.isEmpty()) continue;
+
+                        String replaced = original;
+                        for (Map.Entry<String, String> entry : placeholders.entrySet()) {
+                            String key = entry.getKey();
+                            String value = entry.getValue() != null ? entry.getValue() : "";
+                            // 支持三种格式：{{key}}、${key}、裸变量名
+                            replaced = replaced.replace("{{" + key + "}}", value);
+                            replaced = replaced.replace("${" + key + "}", value);
+                            replaced = replaced.replace("{{ " + key + " }}", value);
+                            replaced = replaced.replace(key, value);
+                        }
+                        if (!replaced.equals(original)) {
+                            // 对FORMULA单元格，清除公式后写入字符串
+                            if (cell.getCellType() == CellType.FORMULA) {
+                                cell.setCellType(CellType.STRING);
                             }
-                            if (!replaced.equals(original)) {
-                                cell.setCellValue(replaced);
-                            }
+                            cell.setCellValue(replaced);
                         }
                     }
                 }

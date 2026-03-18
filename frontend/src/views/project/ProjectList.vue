@@ -45,8 +45,8 @@
             <el-form-item label="项目负责人">
               <el-input v-model="queryForm.projectLeaderName" placeholder="输入负责人姓名" clearable style="width:150px" />
             </el-form-item>
-            <el-form-item label="实际测评人员">
-              <el-input v-model="queryForm.actualMemberName" placeholder="输入姓名" clearable style="width:150px" />
+            <el-form-item label="实际测评人员" :label-width="'100px'">
+              <el-input v-model="queryForm.actualMemberName" placeholder="输入姓名" clearable style="width:130px" />
             </el-form-item>
             <el-form-item label="项目类型">
               <el-select v-model="queryForm.projectTypeId" clearable placeholder="全部" style="width:130px">
