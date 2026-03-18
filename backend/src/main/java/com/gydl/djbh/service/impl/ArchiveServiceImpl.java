@@ -9,6 +9,12 @@ import com.gydl.djbh.utils.SecurityContextUtil;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xwpf.usermodel.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -290,8 +296,8 @@ public class ArchiveServiceImpl implements ArchiveService {
                 return fileBytes;
             }
         } else if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
-            // Excel模板处理（简化版：直接返回）
-            return fileBytes;
+            // Excel模板：替换占位符
+            return replaceXlsxPlaceholders(fileBytes, placeholders);
         }
 
         return fileBytes;
@@ -333,6 +339,40 @@ public class ArchiveServiceImpl implements ArchiveService {
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             doc.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    /**
+     * 替换 .xlsx/.xls 文件中的占位符
+     * 遍历所有Sheet的所有单元格，替换 {{key}}、${key} 或裸变量名
+     */
+    private byte[] replaceXlsxPlaceholders(byte[] fileBytes, Map<String, String> placeholders) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(fileBytes))) {
+            for (int si = 0; si < workbook.getNumberOfSheets(); si++) {
+                Sheet sheet = workbook.getSheetAt(si);
+                for (Row row : sheet) {
+                    for (Cell cell : row) {
+                        if (cell.getCellType() == CellType.STRING) {
+                            String original = cell.getStringCellValue();
+                            if (original == null || original.isEmpty()) continue;
+                            String replaced = original;
+                            for (Map.Entry<String, String> entry : placeholders.entrySet()) {
+                                String key = entry.getKey();
+                                String value = entry.getValue() != null ? entry.getValue() : "";
+                                replaced = replaced.replace("{{" + key + "}}", value);
+                                replaced = replaced.replace("${" + key + "}", value);
+                                replaced = replaced.replace("{{ " + key + " }}", value);
+                            }
+                            if (!replaced.equals(original)) {
+                                cell.setCellValue(replaced);
+                            }
+                        }
+                    }
+                }
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
             return out.toByteArray();
         }
     }

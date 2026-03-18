@@ -71,6 +71,19 @@ public class ProjectDetailResp {
     // 项目组成员（role_type=registered_evaluator的成员姓名，顿号分隔）
     private String projectGroupMembers;
 
+    // 实际测评人员（role_type=actual_member的成员姓名，顿号分隔）
+    private String actualMemberNames;
+
+    // 各角色人员姓名汇总（用于宽表导出）
+    private String surveyEditorNames;
+    private String planEditorNames;
+    private String reportEditorNames;
+    private String networkEvaluatorNames;
+    private String hostEvaluatorNames;
+    private String physicalEvaluatorNames;
+    private String toolScannerNames;
+    private String pentestMemberNames;
+
     // 被测系统列表
     private List<Map<String, Object>> systems;
 

@@ -42,6 +42,8 @@ public class ProjectQueryReq {
     private String keyword;
     /** 项目组成员姓名（模糊，解密后匹配，筛选role_type=registered_evaluator的成员） */
     private String memberName;
+    /** 实际测评人员姓名（模糊，解密后匹配，筛选role_type=actual_member的成员） */
+    private String actualMemberName;
     /** 项目负责人姓名（模糊，解密后匹配） */
     private String projectLeaderName;
     /** 排序字段 */

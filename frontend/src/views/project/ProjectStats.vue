@@ -1,7 +1,7 @@
 <template>
   <div class="page-container">
     <el-row :gutter="16" class="stats-row">
-      <el-col :span="6" v-for="card in summaryCards" :key="card.label">
+      <el-col :span="8" v-for="card in summaryCards" :key="card.label">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-icon" :style="{ background: card.color }">
@@ -54,7 +54,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import { projectApi } from '@/api/project'
-import { Folder, Clock, Check, Money } from '@element-plus/icons-vue'
+import { Folder, Clock, Check, Money, Grid, DataAnalysis } from '@element-plus/icons-vue'
 
 const statusChartRef = ref<HTMLElement>()
 const typeChartRef = ref<HTMLElement>()
@@ -70,6 +70,8 @@ const summaryCards = ref([
   { label: '进行中', value: 0, icon: 'Clock', color: '#E6A23C' },
   { label: '已完成', value: 0, icon: 'Check', color: '#67C23A' },
   { label: '本年合同额(万元)', value: '0', icon: 'Money', color: '#F56C6C' },
+  { label: '2级系统数量', value: 0, icon: 'Grid', color: '#909399' },
+  { label: '3级系统数量', value: 0, icon: 'DataAnalysis', color: '#6E4AC6' },
 ])
 
 onMounted(async () => {
@@ -89,6 +91,8 @@ async function loadStats() {
     summaryCards.value[1].value = d.inProgress || 0
     summaryCards.value[2].value = d.completed || 0
     summaryCards.value[3].value = d.totalAmountWan || '0'
+    summaryCards.value[4].value = d.sysCountL2 || 0
+    summaryCards.value[5].value = d.sysCountL3 || 0
 
     renderStatusChart(d.statusDist || [])
     renderTypeChart(d.typeDist || [])

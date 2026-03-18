@@ -45,6 +45,9 @@
             <el-form-item label="项目负责人">
               <el-input v-model="queryForm.projectLeaderName" placeholder="输入负责人姓名" clearable style="width:150px" />
             </el-form-item>
+            <el-form-item label="实际测评人员">
+              <el-input v-model="queryForm.actualMemberName" placeholder="输入姓名" clearable style="width:150px" />
+            </el-form-item>
             <el-form-item label="项目类型">
               <el-select v-model="queryForm.projectTypeId" clearable placeholder="全部" style="width:130px">
                 <el-option v-for="d in projectTypeOptions" :key="d.id" :label="d.itemLabel" :value="d.id" />
@@ -96,7 +99,8 @@
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="query">导出当前查询结果</el-dropdown-item>
-                <el-dropdown-item command="all">导出全部项目</el-dropdown-item>
+                <el-dropdown-item command="all">导出全部项目(含人员列)</el-dropdown-item>
+                <el-dropdown-item command="full">导出全部项目(完整版多Sheet)</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -310,6 +314,7 @@ const allColumns = [
   { prop: 'sysCountL3',          label: '3级系统数',     width: 90 },
   { prop: 'sysCount',            label: '系统数量',       width: 80 },
   { prop: 'projectGroupMembers', label: '项目组成员',    minWidth: 150 },
+  { prop: 'actualMemberNames',   label: '实际测评人员',  minWidth: 150 },
   { prop: 'projectTypeName',     label: '项目类型',      width: 90 },
   { prop: 'industryName',        label: '所属行业',      width: 100 },
   { prop: 'projectManagerName',  label: '项目经理',      width: 100 },
@@ -356,6 +361,7 @@ const queryForm = reactive({
   projectTypeId: undefined as any,
   industryId: undefined as any,
   memberName: '',
+  actualMemberName: '',
   projectLeaderName: '',
 })
 const dateRange = ref<string[]>([])
@@ -415,6 +421,7 @@ function handleReset() {
     projectTypeId: undefined,
     industryId: undefined,
     memberName: '',
+    actualMemberName: '',
     projectLeaderName: '',
   })
   dateRange.value = []
@@ -464,20 +471,28 @@ async function handleBatchUpdate() {
 async function handleExportCommand(cmd: string) {
   try {
     ElMessage.info('正在生成Excel，请稍候...')
-    const params: any = {
-      ...queryForm,
-      contractDateFrom: dateRange.value?.[0],
-      contractDateTo: dateRange.value?.[1],
-      exportAll: cmd === 'all',
-    }
-    // 移除分页参数
-    delete params.pageNum
-    delete params.pageSize
 
-    const res = await request.get('/project/export', {
-      params,
-      responseType: 'blob',
-    })
+    let res: any
+    let fileName: string
+
+    if (cmd === 'full') {
+      // 完整版多Sheet导出
+      res = await request.get('/project/export/full', { responseType: 'blob' })
+      fileName = `项目完整版_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.xlsx`
+    } else {
+      const params: any = {
+        ...queryForm,
+        contractDateFrom: dateRange.value?.[0],
+        contractDateTo: dateRange.value?.[1],
+        exportAll: cmd === 'all',
+      }
+      // 移除分页参数
+      delete params.pageNum
+      delete params.pageSize
+      res = await request.get('/project/export', { params, responseType: 'blob' })
+      const suffix = cmd === 'all' ? '全部' : '查询结果'
+      fileName = `项目列表_${suffix}_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.xlsx`
+    }
 
     const blobData = (res as any)?.data || res
     const blob = blobData instanceof Blob ? blobData : new Blob([blobData], {
@@ -486,8 +501,7 @@ async function handleExportCommand(cmd: string) {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    const suffix = cmd === 'all' ? '全部' : '查询结果'
-    a.download = `项目列表_${suffix}_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.xlsx`
+    a.download = fileName
     a.click()
     URL.revokeObjectURL(url)
     ElMessage.success('导出成功')

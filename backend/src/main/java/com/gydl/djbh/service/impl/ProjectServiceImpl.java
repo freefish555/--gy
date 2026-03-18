@@ -73,6 +73,7 @@ public class ProjectServiceImpl implements ProjectService {
         boolean hasNameFilter = (req.getProjectName() != null && !req.getProjectName().isEmpty())
                 || (req.getCustomerName() != null && !req.getCustomerName().isEmpty())
                 || (req.getMemberName() != null && !req.getMemberName().isEmpty())
+                || (req.getActualMemberName() != null && !req.getActualMemberName().isEmpty())
                 || (req.getProjectLeaderName() != null && !req.getProjectLeaderName().isEmpty())
                 || (req.getRecordNo() != null && !req.getRecordNo().isEmpty())
                 || (req.getKeyword() != null && !req.getKeyword().isEmpty());
@@ -99,6 +100,10 @@ public class ProjectServiceImpl implements ProjectService {
                 // 按项目组成员姓名过滤（registered_evaluator角色）
                 if (req.getMemberName() != null && !req.getMemberName().isEmpty()) {
                     if (!projectHasMemberByName(p.getId(), req.getMemberName(), "registered_evaluator")) continue;
+                }
+                // 按实际测评人员姓名过滤（actual_member角色）
+                if (req.getActualMemberName() != null && !req.getActualMemberName().isEmpty()) {
+                    if (!projectHasMemberByName(p.getId(), req.getActualMemberName(), "actual_member")) continue;
                 }
                 // 按项目负责人姓名过滤（project_leader角色，也包含project_manager）
                 if (req.getProjectLeaderName() != null && !req.getProjectLeaderName().isEmpty()) {
@@ -336,6 +341,150 @@ public class ProjectServiceImpl implements ProjectService {
         logService.recordOperation("project", "EXPORT", "导出项目列表，共" + records.size() + "条", "SUCCESS");
     }
 
+    /**
+     * 导出全部项目完整版（多Sheet）
+     * Sheet1: 项目主表（含人员汇总列）
+     * Sheet2: 人员详情（每人一行，含角色信息）
+     * Sheet3: 被测系统详情
+     */
+    @Override
+    public void exportExcelFull(HttpServletResponse response) throws Exception {
+        String fileName = URLEncoder.encode("项目完整导出_" + LocalDate.now() + ".xlsx", StandardCharsets.UTF_8);
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment;filename*=UTF-8''" + fileName);
+
+        // 获取全部项目
+        ProjectQueryReq req = new ProjectQueryReq();
+        req.setPageNum(1);
+        req.setPageSize(100000);
+        PageResult<ProjectDetailResp> result = page(req);
+        List<ProjectDetailResp> records = result.getRecords();
+        // 加载详情（含系统和人员）
+        List<ProjectDetailResp> detailRecords = new ArrayList<>();
+        for (ProjectDetailResp p : records) {
+            detailRecords.add(toResp(projectMapper.findByIdWithInfo(p.getId()), true));
+        }
+
+        XSSFWorkbook workbook = new XSSFWorkbook();
+
+        // --- 通用样式 ---
+        XSSFCellStyle headStyle = workbook.createCellStyle();
+        headStyle.setFillForegroundColor(IndexedColors.ROYAL_BLUE.getIndex());
+        headStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        headStyle.setBorderBottom(BorderStyle.THIN);
+        headStyle.setBorderLeft(BorderStyle.THIN);
+        headStyle.setBorderRight(BorderStyle.THIN);
+        headStyle.setBorderTop(BorderStyle.THIN);
+        XSSFFont headFont = workbook.createFont();
+        headFont.setBold(true);
+        headFont.setColor(IndexedColors.WHITE.getIndex());
+        headStyle.setFont(headFont);
+        headStyle.setAlignment(HorizontalAlignment.CENTER);
+
+        XSSFCellStyle dataStyle = workbook.createCellStyle();
+        dataStyle.setBorderBottom(BorderStyle.THIN);
+        dataStyle.setBorderLeft(BorderStyle.THIN);
+        dataStyle.setBorderRight(BorderStyle.THIN);
+        dataStyle.setBorderTop(BorderStyle.THIN);
+
+        DateTimeFormatter dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        DateTimeFormatter dtFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        // ===== Sheet1: 项目主表 =====
+        XSSFSheet sheet1 = workbook.createSheet("项目主表");
+        List<List<String>> head1 = buildExportHead();
+        Row h1 = sheet1.createRow(0);
+        for (int i = 0; i < head1.size(); i++) {
+            Cell c = h1.createCell(i);
+            c.setCellValue(head1.get(i).get(0));
+            c.setCellStyle(headStyle);
+            sheet1.setColumnWidth(i, 5000);
+        }
+        List<List<Object>> data1 = buildExportData(detailRecords);
+        for (int r = 0; r < data1.size(); r++) {
+            Row row = sheet1.createRow(r + 1);
+            List<Object> rowData = data1.get(r);
+            for (int c = 0; c < rowData.size(); c++) {
+                Cell cell = row.createCell(c);
+                Object val = rowData.get(c);
+                cell.setCellValue(val == null ? "" : val.toString());
+                cell.setCellStyle(dataStyle);
+            }
+        }
+
+        // ===== Sheet2: 人员详情 =====
+        XSSFSheet sheet2 = workbook.createSheet("人员详情");
+        String[] memberHeads = { "项目编号", "项目名称", "角色", "人员姓名" };
+        Map<String, String> roleNameMap = new java.util.LinkedHashMap<>();
+        roleNameMap.put("project_manager", "项目经理");
+        roleNameMap.put("project_leader", "项目负责人");
+        roleNameMap.put("registered_evaluator", "登记测评师");
+        roleNameMap.put("actual_member", "实际测评人员");
+        roleNameMap.put("survey_editor", "调研表编制人");
+        roleNameMap.put("plan_editor", "方案编制人");
+        roleNameMap.put("report_editor", "报告编制人");
+        roleNameMap.put("network_evaluator", "网络测评人员");
+        roleNameMap.put("host_evaluator", "主机测评人员");
+        roleNameMap.put("physical_evaluator", "物理测评人员");
+        roleNameMap.put("tool_scanner", "工具扫描人员");
+        roleNameMap.put("pentest_member", "渗透测试人员");
+
+        Row mh = sheet2.createRow(0);
+        for (int i = 0; i < memberHeads.length; i++) {
+            Cell c = mh.createCell(i);
+            c.setCellValue(memberHeads[i]);
+            c.setCellStyle(headStyle);
+            sheet2.setColumnWidth(i, 5500);
+        }
+        int memberRow = 1;
+        for (ProjectDetailResp p : detailRecords) {
+            if (p.getMembers() == null) continue;
+            for (Map<String, Object> m : p.getMembers()) {
+                String roleType = (String) m.get("memberRole");
+                String staffName = (String) m.get("staffName");
+                if (staffName == null || staffName.isEmpty()) continue;
+                Row row = sheet2.createRow(memberRow++);
+                row.createCell(0).setCellValue(p.getProjectNo());
+                row.createCell(1).setCellValue(p.getProjectName());
+                row.createCell(2).setCellValue(roleNameMap.getOrDefault(roleType, roleType));
+                row.createCell(3).setCellValue(staffName);
+                for (int c = 0; c < 4; c++) row.getCell(c).setCellStyle(dataStyle);
+            }
+        }
+
+        // ===== Sheet3: 被测系统详情 =====
+        XSSFSheet sheet3 = workbook.createSheet("被测系统详情");
+        String[] sysHeads = { "项目编号", "项目名称", "系统序号", "系统名称", "系统级别", "测评依据", "备案编号" };
+        Row sh = sheet3.createRow(0);
+        for (int i = 0; i < sysHeads.length; i++) {
+            Cell c = sh.createCell(i);
+            c.setCellValue(sysHeads[i]);
+            c.setCellStyle(headStyle);
+            sheet3.setColumnWidth(i, 5500);
+        }
+        int sysRow = 1;
+        for (ProjectDetailResp p : detailRecords) {
+            if (p.getSystems() == null) continue;
+            for (Map<String, Object> sys : p.getSystems()) {
+                Row row = sheet3.createRow(sysRow++);
+                row.createCell(0).setCellValue(p.getProjectNo());
+                row.createCell(1).setCellValue(p.getProjectName());
+                Object seq = sys.get("sysSeq");
+                row.createCell(2).setCellValue(seq != null ? seq.toString() : "");
+                row.createCell(3).setCellValue(sys.get("sysName") != null ? sys.get("sysName").toString() : "");
+                Object level = sys.get("sysLevel");
+                row.createCell(4).setCellValue(level != null ? (level.toString().equals("2") ? "二级" : level.toString().equals("3") ? "三级" : level.toString()) : "");
+                row.createCell(5).setCellValue(sys.get("evalIndex") != null ? sys.get("evalIndex").toString() : "");
+                row.createCell(6).setCellValue(sys.get("recordNo") != null ? sys.get("recordNo").toString() : "");
+                for (int c = 0; c < 7; c++) if (row.getCell(c) != null) row.getCell(c).setCellStyle(dataStyle);
+            }
+        }
+
+        workbook.write(response.getOutputStream());
+        workbook.close();
+        logService.recordOperation("project", "EXPORT_FULL", "导出全部项目完整版，共" + detailRecords.size() + "条", "SUCCESS");
+    }
+
     private List<List<String>> buildExportHead() {
         String[] cols = {
             "项目编号", "项目名称", "客户名称", "客户地址", "联系人姓名", "联系人电话",
@@ -344,7 +493,12 @@ public class ProjectServiceImpl implements ProjectService {
             "合同签订日期", "合同金额(元)", "纸质归档", "电子归档",
             "测评准备阶段", "方案编制阶段", "现场测评阶段", "报告编制阶段",
             "任务书任命表时间", "所属年份", "业务人员", "项目地区",
-            "报告邮寄日期", "报告邮寄单号", "备注", "创建时间"
+            "报告邮寄日期", "报告邮寄单号", "备注",
+            // 所有角色人员列
+            "登记测评师(项目组成员)", "实际测评人员", "调研表编制人", "方案编制人",
+            "报告编制人", "网络测评人员", "主机测评人员", "物理测评人员",
+            "工具扫描人员", "渗透测试人员",
+            "创建时间"
         };
         List<List<String>> head = new ArrayList<>();
         for (String col : cols) {
@@ -387,6 +541,17 @@ public class ProjectServiceImpl implements ProjectService {
             row.add(p.getReportMailDate() != null ? p.getReportMailDate().format(dateFmt) : "");
             row.add(p.getReportMailNo());
             row.add(p.getRemark());
+            // 角色人员
+            row.add(p.getProjectGroupMembers());
+            row.add(p.getActualMemberNames());
+            row.add(p.getSurveyEditorNames());
+            row.add(p.getPlanEditorNames());
+            row.add(p.getReportEditorNames());
+            row.add(p.getNetworkEvaluatorNames());
+            row.add(p.getHostEvaluatorNames());
+            row.add(p.getPhysicalEvaluatorNames());
+            row.add(p.getToolScannerNames());
+            row.add(p.getPentestMemberNames());
             row.add(p.getCreatedAt() != null ? p.getCreatedAt().format(dtFmt) : "");
             data.add(row);
         }
@@ -637,11 +802,31 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public List<Map<String, Object>> statsByLevel(String year) {
-        return List.of(
-                Map.of("name", "二级", "cnt", 0L),
-                Map.of("name", "三级", "cnt", 0L),
-                Map.of("name", "四级", "cnt", 0L)
-        );
+        // 从数据库实际统计2级和3级系统数量
+        try {
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<TProject> wrapper =
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            if (year != null && !year.isEmpty()) {
+                wrapper.eq(TProject::getYearBelong, year);
+            }
+            List<TProject> allProjects = projectMapper.selectList(wrapper);
+            long l2Total = 0, l3Total = 0;
+            for (TProject p : allProjects) {
+                if (p.getSysCountL2() != null) l2Total += p.getSysCountL2();
+                if (p.getSysCountL3() != null) l3Total += p.getSysCountL3();
+            }
+            return List.of(
+                    Map.of("name", "二级", "cnt", l2Total),
+                    Map.of("name", "三级", "cnt", l3Total),
+                    Map.of("name", "四级", "cnt", 0L)
+            );
+        } catch (Exception e) {
+            return List.of(
+                    Map.of("name", "二级", "cnt", 0L),
+                    Map.of("name", "三级", "cnt", 0L),
+                    Map.of("name", "四级", "cnt", 0L)
+            );
+        }
     }
 
     @Override
@@ -664,11 +849,19 @@ public class ProjectServiceImpl implements ProjectService {
             if (year != null && !year.isEmpty()) {
                 wrapper.eq(TProject::getYearBelong, year);
             }
-            long total = projectMapper.selectCount(wrapper);
+            List<TProject> allProjects = projectMapper.selectList(wrapper);
+            long total = allProjects.size();
+            long l2Total = 0, l3Total = 0;
+            for (TProject p : allProjects) {
+                if (p.getSysCountL2() != null) l2Total += p.getSysCountL2();
+                if (p.getSysCountL3() != null) l3Total += p.getSysCountL3();
+            }
             result.put("total", total);
             result.put("inProgress", 0);
             result.put("completed", total);
             result.put("totalAmountWan", "0");
+            result.put("sysCountL2", l2Total);
+            result.put("sysCountL3", l3Total);
             result.put("typeDist", statsByType(year));
             result.put("industryDist", statsByIndustry(year));
             result.put("statusDist", java.util.Arrays.asList(
@@ -680,6 +873,8 @@ public class ProjectServiceImpl implements ProjectService {
             result.put("inProgress", 0);
             result.put("completed", 0);
             result.put("totalAmountWan", "0");
+            result.put("sysCountL2", 0);
+            result.put("sysCountL3", 0);
             result.put("typeDist", java.util.Collections.emptyList());
             result.put("industryDist", java.util.Collections.emptyList());
             result.put("statusDist", java.util.Collections.emptyList());
@@ -809,6 +1004,17 @@ public class ProjectServiceImpl implements ProjectService {
         }
         resp.setProjectGroupMembers(String.join("、", registeredEvaluatorNames));
 
+        // 填充所有角色人员姓名（用于宽表导出和列表显示）
+        resp.setActualMemberNames(getMemberNamesByRole(memberList4Resp, "actual_member"));
+        resp.setSurveyEditorNames(getMemberNamesByRole(memberList4Resp, "survey_editor"));
+        resp.setPlanEditorNames(getMemberNamesByRole(memberList4Resp, "plan_editor"));
+        resp.setReportEditorNames(getMemberNamesByRole(memberList4Resp, "report_editor"));
+        resp.setNetworkEvaluatorNames(getMemberNamesByRole(memberList4Resp, "network_evaluator"));
+        resp.setHostEvaluatorNames(getMemberNamesByRole(memberList4Resp, "host_evaluator"));
+        resp.setPhysicalEvaluatorNames(getMemberNamesByRole(memberList4Resp, "physical_evaluator"));
+        resp.setToolScannerNames(getMemberNamesByRole(memberList4Resp, "tool_scanner"));
+        resp.setPentestMemberNames(getMemberNamesByRole(memberList4Resp, "pentest_member"));
+
         if (loadDetail) {
             // 被测系统
             List<TProjectSystem> sysList = systemMapper.findByProjectId(p.getId());
@@ -881,6 +1087,26 @@ public class ProjectServiceImpl implements ProjectService {
             m.setRoleType(roleType);
             memberMapper.insert(m);
         }
+    }
+
+    /**
+     * 获取指定角色的成员姓名，顿号分隔
+     */
+    private String getMemberNamesByRole(List<TProjectMember> members, String roleType) {
+        List<String> names = new ArrayList<>();
+        Set<Long> seen = new java.util.LinkedHashSet<>();
+        for (TProjectMember m : members) {
+            if (roleType.equals(m.getRoleType()) && m.getMemberId() != null) {
+                if (seen.add(m.getMemberId())) {
+                    com.gydl.djbh.entity.TStaff staff = staffMapper.selectById(m.getMemberId());
+                    if (staff != null) {
+                        String name = decryptIfNotNull(staff.getRealName());
+                        if (name != null && !name.isEmpty()) names.add(name);
+                    }
+                }
+            }
+        }
+        return String.join("、", names);
     }
 
     private String encryptIfNotNull(String value) {

@@ -24,6 +24,9 @@ public interface ProjectService {
     /** 导出Excel（按查询条件或全部） */
     void exportExcel(ProjectQueryReq req, HttpServletResponse response) throws Exception;
 
+    /** 导出全部项目（完整版多Sheet：项目主表+人员详情+被测系统） */
+    void exportExcelFull(HttpServletResponse response) throws Exception;
+
     /** 下载导入模板 */
     void downloadImportTemplate(HttpServletResponse response) throws Exception;
 

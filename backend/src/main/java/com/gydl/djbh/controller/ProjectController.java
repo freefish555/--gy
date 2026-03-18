@@ -90,6 +90,13 @@ public class ProjectController {
         projectService.exportExcel(req, response);
     }
 
+    /** 导出全部项目完整版（多Sheet：项目主表+人员详情+被测系统详情） */
+    @GetMapping("/export/full")
+    @PreAuthorize("hasAuthority('project:export')")
+    public void exportExcelFull(HttpServletResponse response) throws Exception {
+        projectService.exportExcelFull(response);
+    }
+
     /** 下载导入模板 */
     @GetMapping("/import/template")
     @PreAuthorize("hasAnyAuthority('project:create','project:update:all')")
