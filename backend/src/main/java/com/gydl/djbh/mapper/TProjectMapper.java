@@ -93,12 +93,13 @@ public interface TProjectMapper extends BaseMapper<TProject> {
             "</script>")
     List<Map<String, Object>> statsByIndustry(@Param("year") String year);
 
-    /** 按编写人统计被测系统数量（总数、2级、3级） */
+    /** 按编写人统计被测系统数量（总数、2级、3级、质量审核平均得分） */
     @Select("<script>" +
             "SELECT s.id as writerId, s.real_name as writerName, " +
             "COUNT(ps.id) as sysTotal, " +
             "SUM(CASE WHEN ps.sys_level = 2 THEN 1 ELSE 0 END) as sysL2, " +
-            "SUM(CASE WHEN ps.sys_level = 3 THEN 1 ELSE 0 END) as sysL3 " +
+            "SUM(CASE WHEN ps.sys_level = 3 THEN 1 ELSE 0 END) as sysL3, " +
+            "ROUND(AVG(CASE WHEN ps.quality_score IS NOT NULL THEN ps.quality_score END), 2) as avgQualityScore " +
             "FROM t_project_system ps " +
             "LEFT JOIN t_staff s ON ps.writer_id = s.id " +
             "LEFT JOIN t_project p ON ps.project_id = p.id " +

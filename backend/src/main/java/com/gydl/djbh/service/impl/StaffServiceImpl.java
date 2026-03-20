@@ -136,8 +136,13 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
     public List<Map<String, Object>> listByPosition(String position) {
         List<TStaff> list = baseMapper.findAllActive();
         List<Map<String, Object>> result = new ArrayList<>();
+        // 支持逗号分隔的多职位过滤，如 "测评师,项目经理,项目负责人"
+        java.util.Set<String> posSet = null;
+        if (position != null && !position.isEmpty()) {
+            posSet = new java.util.HashSet<>(java.util.Arrays.asList(position.split(",")));
+        }
         for (TStaff s : list) {
-            if (position != null && !position.isEmpty() && !position.equals(s.getPosition())) continue;
+            if (posSet != null && !posSet.contains(s.getPosition())) continue;
             Map<String, Object> item = new HashMap<>();
             item.put("id", s.getId());
             item.put("staffNo", s.getStaffNo());

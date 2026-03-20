@@ -142,7 +142,7 @@
                 <el-form-item label="业务人员">
                   <el-select v-model="form.businessPerson" placeholder="请输入或选择" clearable
                     filterable allow-create style="width:100%">
-                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.realName" />
+                    <el-option v-for="s in businessOptions" :key="s.id" :label="s.realName" :value="s.realName" />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -260,7 +260,7 @@
             <el-table-column label="编写人" prop="writerId" min-width="140">
               <template #default="{ row }">
                 <el-select v-model="row.writerId" clearable filterable placeholder="请选择" size="small" style="width:100%">
-                  <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                  <el-option v-for="s in writerOptions" :key="s.id" :label="s.realName" :value="s.id" />
                 </el-select>
               </template>
             </el-table-column>
@@ -523,6 +523,8 @@ const staffOptions = ref<any[]>([])
 const managerOptions = ref<any[]>([])     // position=项目经理
 const evaluatorOptions = ref<any[]>([])   // position=测评师
 const reviewerOptions = ref<any[]>([])    // position=技术审核
+const writerOptions = ref<any[]>([])      // position=测评师,项目经理,项目负责人
+const businessOptions = ref<any[]>([])    // position=业务人员
 const reportConclusionOptions = ref<any[]>([])
 const projectTypeOptions = ref<any[]>([])
 const industryOptions = ref<any[]>([])
@@ -578,16 +580,20 @@ function formatPhaseRange(val: string[]): string {
 
 onMounted(async () => {
   try {
-    const [allRes, mgrRes, evalRes, revRes]: any[] = await Promise.all([
+    const [allRes, mgrRes, evalRes, revRes, writerRes, bizRes]: any[] = await Promise.all([
       staffApi.all(),
       staffApi.listByPosition('项目经理'),
       staffApi.listByPosition('测评师'),
       staffApi.listByPosition('技术审核'),
+      staffApi.listByPosition('测评师,项目经理,项目负责人'),
+      staffApi.listByPosition('业务人员'),
     ])
     staffOptions.value = allRes.data || []
     managerOptions.value = mgrRes.data || []
     evaluatorOptions.value = evalRes.data || []
     reviewerOptions.value = revRes.data || []
+    writerOptions.value = writerRes.data || []
+    businessOptions.value = bizRes.data || []
   } catch {}
 
   try {
@@ -664,7 +670,7 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-.page-container { max-width: 1200px; margin: 0 auto; }
+.page-container { width: 100%; box-sizing: border-box; }
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .title { font-size: 16px; font-weight: 600; }
 .form-body { padding: 16px 0; }

@@ -76,6 +76,16 @@
                 <el-tag size="small" type="danger">{{ row.sysL3 || 0 }}</el-tag>
               </template>
             </el-table-column>
+            <el-table-column prop="avgQualityScore" label="质量审核平均得分" min-width="130" align="center">
+              <template #default="{ row }">
+                <span v-if="row.avgQualityScore !== null && row.avgQualityScore !== undefined">
+                  <el-tag size="small" :type="row.avgQualityScore >= 90 ? 'success' : row.avgQualityScore >= 60 ? 'warning' : 'danger'">
+                    {{ row.avgQualityScore }}
+                  </el-tag>
+                </span>
+                <span v-else style="color:#C0C4CC">-</span>
+              </template>
+            </el-table-column>
           </el-table>
           <div v-if="writerStats.length === 0" style="text-align:center;color:#909399;padding:20px;font-size:13px">
             暂无数据（请先在被测系统中配置编写人）
