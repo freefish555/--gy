@@ -64,7 +64,7 @@ public class UserController {
     /**
      * 获取所有角色列表（供下拉选择）
      */
-    @GetMapping("/role/list")
+    @GetMapping("/role/all")
     @PreAuthorize("hasAnyAuthority('system:user','SUPER_ADMIN')")
     public Result<List<Map<String, Object>>> listRoles() {
         List<TRole> roles = roleMapper.findAllActive();

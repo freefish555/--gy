@@ -39,6 +39,10 @@ public interface ProjectService {
     List<Map<String, Object>> statsByLevel(String year);
     List<Map<String, Object>> statsByType(String year);
     List<Map<String, Object>> statsByIndustry(String year);
+    /** 按编写人统计被测系统数量 */
+    List<Map<String, Object>> statsByWriter(String year);
+    /** 按项目经理统计项目数和系统数 */
+    List<Map<String, Object>> statsByManagerDetail(String year);
 
     /** 汇总统计（供前端统计页面使用） */
     Map<String, Object> statsSummary(String year);

@@ -1,5 +1,15 @@
 <template>
   <div class="page-container">
+    <!-- 顶部年份筛选 -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span style="font-size:14px;color:#606266">年份筛选：</span>
+      <el-select v-model="typeYear" placeholder="全部年份" clearable size="small"
+        @change="loadAll" style="width:120px">
+        <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" />
+      </el-select>
+    </div>
+
+    <!-- 汇总卡片 -->
     <el-row :gutter="16" class="stats-row">
       <el-col :span="8" v-for="card in summaryCards" :key="card.label">
         <el-card shadow="hover" class="stat-card">
@@ -16,21 +26,16 @@
       </el-col>
     </el-row>
 
+    <!-- 图表行 -->
     <el-row :gutter="16" style="margin-top:16px">
       <el-col :span="12">
         <el-card shadow="never" header="按项目状态分布">
-          <div ref="statusChartRef" style="height:280px"></div>
+          <div ref="statusChartRef" style="height:260px"></div>
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="never" header="按项目类型分布">
-          <div class="chart-filter">
-            <el-select v-model="typeYear" placeholder="选择年份" clearable size="small"
-              @change="loadStats" style="width:120px">
-              <el-option v-for="y in yearOptions" :key="y" :label="y+'年'" :value="y" />
-            </el-select>
-          </div>
-          <div ref="typeChartRef" style="height:280px"></div>
+          <div ref="typeChartRef" style="height:260px"></div>
         </el-card>
       </el-col>
     </el-row>
@@ -38,12 +43,76 @@
     <el-row :gutter="16" style="margin-top:16px">
       <el-col :span="12">
         <el-card shadow="never" header="按所属行业分布">
-          <div ref="industryChartRef" style="height:280px"></div>
+          <div ref="industryChartRef" style="height:260px"></div>
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="never" header="合同金额月度趋势">
-          <div ref="amountChartRef" style="height:280px"></div>
+          <div ref="amountChartRef" style="height:260px"></div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 新增统计表格行 -->
+    <el-row :gutter="16" style="margin-top:16px">
+      <!-- 编写人员系统数量统计 -->
+      <el-col :span="12">
+        <el-card shadow="never" header="编写人员系统数量统计">
+          <el-table :data="writerStats" size="small" border style="width:100%" max-height="320">
+            <el-table-column type="index" label="序号" width="55" align="center" />
+            <el-table-column prop="writerName" label="编写人员" min-width="100" />
+            <el-table-column prop="sysTotal" label="系统总数" width="90" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" type="primary">{{ row.sysTotal || 0 }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="sysL2" label="2级系统" width="80" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" type="warning">{{ row.sysL2 || 0 }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="sysL3" label="3级系统" width="80" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" type="danger">{{ row.sysL3 || 0 }}</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div v-if="writerStats.length === 0" style="text-align:center;color:#909399;padding:20px;font-size:13px">
+            暂无数据（请先在被测系统中配置编写人）
+          </div>
+        </el-card>
+      </el-col>
+
+      <!-- 项目经理统计 -->
+      <el-col :span="12">
+        <el-card shadow="never" header="项目经理负责情况统计">
+          <el-table :data="managerDetailStats" size="small" border style="width:100%" max-height="320">
+            <el-table-column type="index" label="序号" width="55" align="center" />
+            <el-table-column prop="managerName" label="项目经理" min-width="100" />
+            <el-table-column prop="projectCnt" label="项目数" width="75" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" type="primary">{{ row.projectCnt || 0 }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="sysTotal" label="系统总数" width="80" align="center">
+              <template #default="{ row }">
+                <el-tag size="small">{{ row.sysTotal || 0 }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="sysL2" label="2级系统" width="75" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" type="warning">{{ row.sysL2 || 0 }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="sysL3" label="3级系统" width="75" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" type="danger">{{ row.sysL3 || 0 }}</el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
+          <div v-if="managerDetailStats.length === 0" style="text-align:center;color:#909399;padding:20px;font-size:13px">
+            暂无数据
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -65,6 +134,9 @@ let charts: echarts.ECharts[] = []
 const typeYear = ref('')
 const yearOptions = ref<string[]>([])
 
+const writerStats = ref<any[]>([])
+const managerDetailStats = ref<any[]>([])
+
 const summaryCards = ref([
   { label: '项目总数', value: 0, icon: 'Folder', color: '#409EFF' },
   { label: '进行中', value: 0, icon: 'Clock', color: '#E6A23C' },
@@ -75,18 +147,20 @@ const summaryCards = ref([
 ])
 
 onMounted(async () => {
-  // 生成年份选项
   const now = new Date().getFullYear()
   for (let y = now; y >= now - 5; y--) yearOptions.value.push(String(y))
   typeYear.value = String(now)
-  await loadStats()
+  await loadAll()
 })
+
+async function loadAll() {
+  await Promise.all([loadStats(), loadTableStats()])
+}
 
 async function loadStats() {
   try {
     const res: any = await projectApi.stats({ year: typeYear.value })
     const d = res.data
-    // 汇总卡片
     summaryCards.value[0].value = d.total || 0
     summaryCards.value[1].value = d.inProgress || 0
     summaryCards.value[2].value = d.completed || 0
@@ -99,7 +173,6 @@ async function loadStats() {
     renderIndustryChart(d.industryDist || [])
     renderAmountChart(d.monthlyAmount || [])
   } catch (e) {
-    // 使用模拟数据
     renderStatusChart([
       { name: '待启动', value: 5 }, { name: '进行中', value: 12 },
       { name: '测评完成', value: 8 }, { name: '报告已出', value: 6 }, { name: '已归档', value: 20 }
@@ -116,6 +189,20 @@ async function loadStats() {
       { month: '1月', amount: 12 }, { month: '2月', amount: 8 }, { month: '3月', amount: 15 },
       { month: '4月', amount: 20 }, { month: '5月', amount: 18 }, { month: '6月', amount: 25 }
     ])
+  }
+}
+
+async function loadTableStats() {
+  try {
+    const [writerRes, mgrRes]: any[] = await Promise.all([
+      projectApi.statsByWriter(typeYear.value || undefined),
+      projectApi.statsByManagerDetail(typeYear.value || undefined),
+    ])
+    writerStats.value = writerRes.data || []
+    managerDetailStats.value = mgrRes.data || []
+  } catch (e) {
+    writerStats.value = []
+    managerDetailStats.value = []
   }
 }
 

@@ -91,7 +91,7 @@ const rules = {
 
 onMounted(async () => {
   loadData()
-  try { const r: any = await request.get('/system/role/list'); roleOptions.value = r.data || [] } catch {}
+  try { const r: any = await request.get('/system/role/all'); roleOptions.value = r.data || [] } catch {}
 })
 
 async function loadData() {

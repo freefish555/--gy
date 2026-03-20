@@ -84,5 +84,13 @@ public class ProjectSaveReq {
         private Integer sysLevel;
         private String evalIndex;
         private String recordNo;
+        /** 编写人ID */
+        private Long writerId;
+        /** 审核人员ID */
+        private Long reviewerId;
+        /** 报告结论 */
+        private String reportConclusion;
+        /** 质量审核得分 */
+        private Integer qualityScore;
     }
 }

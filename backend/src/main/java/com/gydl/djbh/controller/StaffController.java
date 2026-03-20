@@ -37,6 +37,12 @@ public class StaffController {
         return Result.ok(staffService.listActive());
     }
 
+    /** 按职位筛选在职人员（下拉列表用） */
+    @GetMapping("/listByPosition")
+    public Result<List<Map<String, Object>>> listByPosition(@RequestParam(required = false) String position) {
+        return Result.ok(staffService.listByPosition(position));
+    }
+
     /** 详情 */
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('system:staff')")

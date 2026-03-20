@@ -51,4 +51,6 @@ export const projectApi = {
   statsByType: (year?: string) => request.get('/project/stats/type', { params: { year } }),
   statsByIndustry: (year?: string) => request.get('/project/stats/industry', { params: { year } }),
   statsByManager: (year?: string) => request.get('/project/stats/manager', { params: { year } }),
+  statsByWriter: (year?: string) => request.get('/project/stats/writer', { params: { year } }),
+  statsByManagerDetail: (year?: string) => request.get('/project/stats/manager-detail', { params: { year } }),
 }

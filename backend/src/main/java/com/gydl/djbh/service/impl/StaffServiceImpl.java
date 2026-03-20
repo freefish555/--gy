@@ -133,6 +133,23 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
     }
 
     @Override
+    public List<Map<String, Object>> listByPosition(String position) {
+        List<TStaff> list = baseMapper.findAllActive();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (TStaff s : list) {
+            if (position != null && !position.isEmpty() && !position.equals(s.getPosition())) continue;
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", s.getId());
+            item.put("staffNo", s.getStaffNo());
+            item.put("realName", decrypt(s.getRealName()));
+            item.put("position", s.getPosition());
+            item.put("roleLevel", s.getRoleLevel());
+            result.add(item);
+        }
+        return result;
+    }
+
+    @Override
     public void exportExcel(StaffQueryReq req, HttpServletResponse response) throws Exception {
         // 导出全量匹配结果（不分页）
         req.setPage(1);

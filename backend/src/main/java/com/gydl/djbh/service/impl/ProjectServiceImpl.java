@@ -454,7 +454,8 @@ public class ProjectServiceImpl implements ProjectService {
 
         // ===== Sheet3: 被测系统详情 =====
         XSSFSheet sheet3 = workbook.createSheet("被测系统详情");
-        String[] sysHeads = { "项目编号", "项目名称", "系统序号", "系统名称", "系统级别", "测评依据", "备案编号" };
+        String[] sysHeads = { "项目编号", "项目名称", "系统序号", "系统名称", "系统级别", "测评依据", "备案编号",
+                              "编写人", "审核人员", "报告结论", "质量审核得分" };
         Row sh = sheet3.createRow(0);
         for (int i = 0; i < sysHeads.length; i++) {
             Cell c = sh.createCell(i);
@@ -476,7 +477,12 @@ public class ProjectServiceImpl implements ProjectService {
                 row.createCell(4).setCellValue(level != null ? (level.toString().equals("2") ? "二级" : level.toString().equals("3") ? "三级" : level.toString()) : "");
                 row.createCell(5).setCellValue(sys.get("evalIndex") != null ? sys.get("evalIndex").toString() : "");
                 row.createCell(6).setCellValue(sys.get("recordNo") != null ? sys.get("recordNo").toString() : "");
-                for (int c = 0; c < 7; c++) if (row.getCell(c) != null) row.getCell(c).setCellStyle(dataStyle);
+                row.createCell(7).setCellValue(sys.get("writerName") != null ? sys.get("writerName").toString() : "");
+                row.createCell(8).setCellValue(sys.get("reviewerName") != null ? sys.get("reviewerName").toString() : "");
+                row.createCell(9).setCellValue(sys.get("reportConclusion") != null ? sys.get("reportConclusion").toString() : "");
+                Object qs = sys.get("qualityScore");
+                row.createCell(10).setCellValue(qs != null ? qs.toString() : "");
+                for (int c = 0; c < 11; c++) if (row.getCell(c) != null) row.getCell(c).setCellStyle(dataStyle);
             }
         }
 
@@ -840,6 +846,38 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    public List<Map<String, Object>> statsByWriter(String year) {
+        List<Map<String, Object>> raw = projectMapper.statsByWriter(year);
+        // 解密编写人姓名
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> row : raw) {
+            Map<String, Object> item = new java.util.HashMap<>(row);
+            Object writerName = item.get("writerName");
+            if (writerName != null) {
+                item.put("writerName", decryptIfNotNull(writerName.toString()));
+            }
+            result.add(item);
+        }
+        return result;
+    }
+
+    @Override
+    public List<Map<String, Object>> statsByManagerDetail(String year) {
+        List<Map<String, Object>> raw = projectMapper.statsByManagerDetail(year);
+        // 解密项目经理姓名
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> row : raw) {
+            Map<String, Object> item = new java.util.HashMap<>(row);
+            Object managerName = item.get("managerName");
+            if (managerName != null) {
+                item.put("managerName", decryptIfNotNull(managerName.toString()));
+            }
+            result.add(item);
+        }
+        return result;
+    }
+
+    @Override
     public Map<String, Object> statsSummary(String year) {
         Map<String, Object> result = new java.util.HashMap<>();
         try {
@@ -939,6 +977,10 @@ public class ProjectServiceImpl implements ProjectService {
             sys.setSysLevel(item.getSysLevel());
             sys.setEvalIndex(item.getEvalIndex() != null ? item.getEvalIndex() : "");
             sys.setRecordNo(item.getRecordNo());
+            sys.setWriterId(item.getWriterId());
+            sys.setReviewerId(item.getReviewerId());
+            sys.setReportConclusion(item.getReportConclusion());
+            sys.setQualityScore(item.getQualityScore());
             systemMapper.insert(sys);
         }
     }
@@ -1027,6 +1069,24 @@ public class ProjectServiceImpl implements ProjectService {
                 sysMap.put("sysLevel", sys.getSysLevel());
                 sysMap.put("evalIndex", sys.getEvalIndex());
                 sysMap.put("recordNo", sys.getRecordNo());
+                sysMap.put("writerId", sys.getWriterId());
+                sysMap.put("reviewerId", sys.getReviewerId());
+                sysMap.put("reportConclusion", sys.getReportConclusion());
+                sysMap.put("qualityScore", sys.getQualityScore());
+                // 编写人姓名
+                if (sys.getWriterId() != null) {
+                    com.gydl.djbh.entity.TStaff writer = staffMapper.selectById(sys.getWriterId());
+                    sysMap.put("writerName", writer != null ? decryptIfNotNull(writer.getRealName()) : "");
+                } else {
+                    sysMap.put("writerName", "");
+                }
+                // 审核人员姓名
+                if (sys.getReviewerId() != null) {
+                    com.gydl.djbh.entity.TStaff reviewer = staffMapper.selectById(sys.getReviewerId());
+                    sysMap.put("reviewerName", reviewer != null ? decryptIfNotNull(reviewer.getRealName()) : "");
+                } else {
+                    sysMap.put("reviewerName", "");
+                }
                 sysResult.add(sysMap);
             }
             resp.setSystems(sysResult);

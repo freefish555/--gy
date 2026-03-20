@@ -18,10 +18,10 @@
         @select="handleMenuSelect"
         class="sidebar-menu"
       >
-        <!-- 项目管理（需有项目相关权限，且安全管理员、日志管理员不显示） -->
+        <!-- 项目管理（需有项目相关权限，且安全管理员、日志管理员、系统管理员不显示） -->
         <el-sub-menu
           index="project"
-          v-if="!isSecurityAdmin && authStore.hasAnyPermission('project:view:all','project:view:own','project:create','project:stats')"
+          v-if="!isSecurityAdmin && !isSysAdmin && authStore.hasAnyPermission('project:view:all','project:view:own','project:create','project:stats')"
         >
           <template #title>
             <el-icon><Folder /></el-icon>
@@ -53,7 +53,7 @@
         <!-- 归档管理 -->
         <el-sub-menu
           index="archive"
-          v-if="authStore.hasPermission('archive:create')"
+          v-if="!isSysAdmin && authStore.hasPermission('archive:create')"
         >
           <template #title>
             <el-icon><Document /></el-icon>
@@ -68,7 +68,7 @@
         <!-- 系统设置 -->
         <el-sub-menu
           index="system"
-          v-if="authStore.hasAnyPermission('system:config','system:user','system:staff','system:dict','archive:template')"
+          v-if="authStore.hasAnyPermission('system:config','system:user','system:staff','system:dict','archive:template','system:role')"
         >
           <template #title>
             <el-icon><Setting /></el-icon>
@@ -78,10 +78,14 @@
             <el-icon><Tools /></el-icon>
             <span>系统参数设置</span>
           </el-menu-item>
-          <!-- 安全管理员不显示管理员设置菜单 -->
+          <!-- 安全管理员不显示管理员设置菜单；系统管理员有此权限 -->
           <el-menu-item v-if="authStore.hasPermission('system:user') && !isSecurityAdmin" index="/system/user">
             <el-icon><UserFilled /></el-icon>
             <span>管理员设置</span>
+          </el-menu-item>
+          <el-menu-item v-if="authStore.hasPermission('system:role')" index="/system/role">
+            <el-icon><Key /></el-icon>
+            <span>角色权限管理</span>
           </el-menu-item>
           <el-menu-item v-if="authStore.hasPermission('system:staff')" index="/system/staff">
             <el-icon><Avatar /></el-icon>
@@ -100,7 +104,7 @@
         <!-- 日志管理 -->
         <el-sub-menu
           index="log"
-          v-if="authStore.hasAnyPermission('log:login:view','log:operation:view','log:server:config')"
+          v-if="!isSysAdmin && authStore.hasAnyPermission('log:login:view','log:operation:view','log:server:config')"
         >
           <template #title>
             <el-icon><Document /></el-icon>
@@ -261,6 +265,8 @@ const isCollapsed = ref(false)
 
 /** 是否为安全管理员角色（用于控制菜单显示） */
 const isSecurityAdmin = computed(() => authStore.userInfo?.roleCode === 'SECURITY_ADMIN')
+/** 是否为系统管理员角色（仅显示系统设置菜单） */
+const isSysAdmin = computed(() => authStore.userInfo?.roleCode === 'SYS_ADMIN')
 
 // 菜单导航（替代 el-menu 的 router prop，避免注入问题）
 function handleMenuSelect(index: string) {

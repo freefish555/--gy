@@ -92,4 +92,34 @@ public interface TProjectMapper extends BaseMapper<TProject> {
             "GROUP BY p.industry_id, di.item_label ORDER BY cnt DESC" +
             "</script>")
     List<Map<String, Object>> statsByIndustry(@Param("year") String year);
+
+    /** 按编写人统计被测系统数量（总数、2级、3级） */
+    @Select("<script>" +
+            "SELECT s.id as writerId, s.real_name as writerName, " +
+            "COUNT(ps.id) as sysTotal, " +
+            "SUM(CASE WHEN ps.sys_level = 2 THEN 1 ELSE 0 END) as sysL2, " +
+            "SUM(CASE WHEN ps.sys_level = 3 THEN 1 ELSE 0 END) as sysL3 " +
+            "FROM t_project_system ps " +
+            "LEFT JOIN t_staff s ON ps.writer_id = s.id " +
+            "LEFT JOIN t_project p ON ps.project_id = p.id " +
+            "WHERE ps.writer_id IS NOT NULL " +
+            "<if test='year != null and year != \"\"'>AND p.year_belong = #{year} </if>" +
+            "GROUP BY ps.writer_id, s.real_name ORDER BY sysTotal DESC" +
+            "</script>")
+    List<Map<String, Object>> statsByWriter(@Param("year") String year);
+
+    /** 按项目经理统计项目数和系统数（项目数、系统总数、2级系统数、3级系统数） */
+    @Select("<script>" +
+            "SELECT pm.id as managerId, pm.real_name as managerName, " +
+            "COUNT(DISTINCT p.id) as projectCnt, " +
+            "SUM(COALESCE(p.sys_count_l2, 0) + COALESCE(p.sys_count_l3, 0)) as sysTotal, " +
+            "SUM(COALESCE(p.sys_count_l2, 0)) as sysL2, " +
+            "SUM(COALESCE(p.sys_count_l3, 0)) as sysL3 " +
+            "FROM t_project p " +
+            "LEFT JOIN t_staff pm ON p.project_manager_id = pm.id " +
+            "WHERE p.project_manager_id IS NOT NULL " +
+            "<if test='year != null and year != \"\"'>AND p.year_belong = #{year} </if>" +
+            "GROUP BY p.project_manager_id, pm.real_name ORDER BY projectCnt DESC" +
+            "</script>")
+    List<Map<String, Object>> statsByManagerDetail(@Param("year") String year);
 }

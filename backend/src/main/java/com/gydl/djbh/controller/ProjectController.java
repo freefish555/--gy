@@ -153,4 +153,16 @@ public class ProjectController {
     public Result<?> statsByIndustry(@RequestParam(required = false) String year) {
         return Result.ok(projectService.statsByIndustry(year));
     }
+
+    @GetMapping("/stats/writer")
+    @PreAuthorize("hasAuthority('project:stats')")
+    public Result<?> statsByWriter(@RequestParam(required = false) String year) {
+        return Result.ok(projectService.statsByWriter(year));
+    }
+
+    @GetMapping("/stats/manager-detail")
+    @PreAuthorize("hasAuthority('project:stats')")
+    public Result<?> statsByManagerDetail(@RequestParam(required = false) String year) {
+        return Result.ok(projectService.statsByManagerDetail(year));
+    }
 }

@@ -3,6 +3,7 @@ import request from '@/utils/request'
 export const staffApi = {
   list: (params?: any) => request.get('/staff/page', { params }),
   all: () => request.get('/staff/list'),
+  listByPosition: (position?: string) => request.get('/staff/listByPosition', { params: position ? { position } : {} }),
   detail: (id: number) => request.get(`/staff/${id}`),
   create: (data: any) => request.post('/staff', data),
   update: (id: number, data: any) => request.put(`/staff/${id}`, data),
