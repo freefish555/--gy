@@ -201,4 +201,43 @@ ORDER BY p.perm_code;
 SELECT '=== t_permission 权限名称验证（前5条） ===' AS info;
 SELECT perm_code, perm_name FROM t_permission ORDER BY id LIMIT 5;
 
+-- ============================================================
+-- 变更6：新增 PROJECT_REGION 字典（江苏省13地市）
+-- ============================================================
+
+INSERT INTO `t_dict` (`dict_code`, `dict_name`, `is_system`, `sort_order`, `remark`)
+SELECT 'PROJECT_REGION', '项目地区', 1, 7, NULL
+WHERE NOT EXISTS (
+  SELECT 1 FROM `t_dict` WHERE `dict_code` = 'PROJECT_REGION'
+);
+
+-- 批量插入13个地市（幂等：按item_value去重）
+INSERT INTO `t_dict_item` (`dict_id`, `item_value`, `item_label`, `sort_order`, `status`)
+SELECT d.id, v.item_value, v.item_label, v.sort_order, 1
+FROM `t_dict` d
+JOIN (
+  SELECT 'NANJING'     AS item_value, '南京市'  AS item_label, 1  AS sort_order UNION ALL
+  SELECT 'WUXI',       '无锡市',  2  UNION ALL
+  SELECT 'XUZHOU',     '徐州市',  3  UNION ALL
+  SELECT 'CHANGZHOU',  '常州市',  4  UNION ALL
+  SELECT 'SUZHOU',     '苏州市',  5  UNION ALL
+  SELECT 'NANTONG',    '南通市',  6  UNION ALL
+  SELECT 'LIANYUNGANG','连云港市',7  UNION ALL
+  SELECT 'HUAIAN',     '淮安市',  8  UNION ALL
+  SELECT 'YANCHENG',   '盐城市',  9  UNION ALL
+  SELECT 'YANGZHOU',   '扬州市',  10 UNION ALL
+  SELECT 'ZHENJIANG',  '镇江市',  11 UNION ALL
+  SELECT 'TAIZHOU',    '泰州市',  12 UNION ALL
+  SELECT 'SUQIAN',     '宿迁市',  13
+) v ON d.dict_code = 'PROJECT_REGION'
+WHERE NOT EXISTS (
+  SELECT 1 FROM `t_dict_item` di2
+  WHERE di2.dict_id = d.id AND di2.item_value = v.item_value
+);
+
+SELECT '=== PROJECT_REGION 字典验证 ===' AS info;
+SELECT di.item_value, di.item_label FROM t_dict d
+JOIN t_dict_item di ON d.id = di.dict_id
+WHERE d.dict_code = 'PROJECT_REGION' ORDER BY di.sort_order;
+
 SELECT '=== 迁移完成 ===' AS info;

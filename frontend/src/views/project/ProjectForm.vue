@@ -167,7 +167,9 @@
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="项目地区">
-                  <el-input v-model="form.projectRegion" placeholder="如: 华东地区" />
+                  <el-select v-model="form.projectRegion" placeholder="请选择地区" clearable filterable style="width:100%">
+                    <el-option v-for="d in projectRegionOptions" :key="d.itemValue" :label="d.itemLabel" :value="d.itemValue" />
+                  </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -528,6 +530,7 @@ const businessOptions = ref<any[]>([])    // position=业务人员
 const reportConclusionOptions = ref<any[]>([])
 const projectTypeOptions = ref<any[]>([])
 const industryOptions = ref<any[]>([])
+const projectRegionOptions = ref<any[]>([])
 
 // ===== 监听被测系统变化，自动更新合并名称和等级数量 =====
 function onSystemNameChange() {
@@ -603,7 +606,10 @@ onMounted(async () => {
     industryOptions.value = indRes.data || []
     const rcRes: any = await dictApi.getAllItems('REPORT_CONCLUSION')
     reportConclusionOptions.value = (rcRes.data || []).map((d: any) => ({ itemValue: d.itemValue, itemLabel: d.itemLabel }))
+    const regionRes: any = await dictApi.getAllItems('PROJECT_REGION')
+    projectRegionOptions.value = (regionRes.data || []).map((d: any) => ({ itemValue: d.itemValue, itemLabel: d.itemLabel }))
   } catch {}
+
 
   if (isEdit.value) {
     loadDetail()

@@ -53,4 +53,6 @@ export const projectApi = {
   statsByManager: (year?: string) => request.get('/project/stats/manager', { params: { year } }),
   statsByWriter: (year?: string) => request.get('/project/stats/writer', { params: { year } }),
   statsByManagerDetail: (year?: string) => request.get('/project/stats/manager-detail', { params: { year } }),
+  statsByRegion: (year?: string) => request.get('/project/stats/region', { params: { year } }),
+  statsByAmount: (year?: string) => request.get('/project/stats/amount', { params: { year } }),
 }

@@ -878,6 +878,67 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    public List<Map<String, Object>> statsByRegion(String year) {
+        return projectMapper.statsByRegion(year);
+    }
+
+    @Override
+    public Map<String, Object> statsByAmount(String year) {
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        try {
+            List<Map<String, Object>> rows = projectMapper.findForAmountStats(year);
+            // 月度金额：key=月份(1-12)，value=金额累计(元)
+            java.math.BigDecimal[] monthly = new java.math.BigDecimal[13];
+            for (int i = 1; i <= 12; i++) monthly[i] = java.math.BigDecimal.ZERO;
+            java.math.BigDecimal totalYuan = java.math.BigDecimal.ZERO;
+
+            for (Map<String, Object> row : rows) {
+                Object amtObj = row.get("contract_amount");
+                if (amtObj == null || amtObj.toString().isEmpty()) continue;
+                String decrypted = decryptIfNotNull(amtObj.toString());
+                if (decrypted == null || decrypted.isEmpty()) continue;
+                java.math.BigDecimal amt;
+                try { amt = new java.math.BigDecimal(decrypted.replaceAll("[,，]", "")); }
+                catch (Exception ex) { continue; }
+                // 年度总额
+                totalYuan = totalYuan.add(amt);
+                // 月度：按contract_date月份归属
+                Object dateObj = row.get("contract_date");
+                if (dateObj != null && !dateObj.toString().isEmpty()) {
+                    String dateStr = dateObj.toString(); // yyyy-MM-dd 或 yyyy-MM-dd xx:xx:xx
+                    try {
+                        int month = Integer.parseInt(dateStr.substring(5, 7));
+                        if (month >= 1 && month <= 12) {
+                            monthly[month] = monthly[month].add(amt);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+            // 年度总额转万元
+            java.math.BigDecimal totalWan = totalYuan.divide(
+                new java.math.BigDecimal("10000"), 2, java.math.RoundingMode.HALF_UP);
+            result.put("totalWan", totalWan.toPlainString());
+
+            // 月度列表
+            List<Map<String, Object>> monthlyList = new ArrayList<>();
+            String[] monthNames = {"","1月","2月","3月","4月","5月","6月",
+                                   "7月","8月","9月","10月","11月","12月"};
+            for (int i = 1; i <= 12; i++) {
+                Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("month", monthNames[i]);
+                m.put("amountWan", monthly[i].divide(
+                    new java.math.BigDecimal("10000"), 2, java.math.RoundingMode.HALF_UP).toPlainString());
+                monthlyList.add(m);
+            }
+            result.put("monthly", monthlyList);
+        } catch (Exception e) {
+            result.put("totalWan", "0.00");
+            result.put("monthly", java.util.Collections.emptyList());
+        }
+        return result;
+    }
+
+    @Override
     public Map<String, Object> statsSummary(String year) {
         Map<String, Object> result = new java.util.HashMap<>();
         try {

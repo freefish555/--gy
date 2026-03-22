@@ -26,60 +26,76 @@
       </el-col>
     </el-row>
 
-    <!-- 图表行 -->
+    <!-- 图表行1：项目类型分布 + 所属行业分布 -->
     <el-row :gutter="16" style="margin-top:16px">
       <el-col :span="12">
-        <el-card shadow="never" header="按项目状态分布">
-          <div ref="statusChartRef" style="height:260px"></div>
+        <el-card shadow="never" header="项目类型分布">
+          <div ref="typeChartRef" style="height:280px"></div>
         </el-card>
       </el-col>
       <el-col :span="12">
-        <el-card shadow="never" header="按项目类型分布">
-          <div ref="typeChartRef" style="height:260px"></div>
+        <el-card shadow="never" header="所属行业分布">
+          <div ref="industryChartRef" style="height:280px"></div>
         </el-card>
       </el-col>
     </el-row>
 
+    <!-- 图表行2：项目地区分布 + 合同金额趋势 -->
     <el-row :gutter="16" style="margin-top:16px">
       <el-col :span="12">
-        <el-card shadow="never" header="按所属行业分布">
-          <div ref="industryChartRef" style="height:260px"></div>
+        <el-card shadow="never" header="项目地区分布">
+          <div ref="regionChartRef" style="height:280px"></div>
+          <div v-if="regionEmpty" style="text-align:center;color:#909399;padding:12px;font-size:13px">
+            暂无数据（请先在项目中填写地区信息）
+          </div>
         </el-card>
       </el-col>
       <el-col :span="12">
-        <el-card shadow="never" header="合同金额月度趋势">
-          <div ref="amountChartRef" style="height:260px"></div>
+        <el-card shadow="never">
+          <template #header>
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span>合同金额趋势</span>
+              <span style="font-size:13px;color:#606266">
+                年度总额：
+                <span style="font-size:16px;font-weight:700;color:#409EFF">
+                  {{ amountTotalWan }}
+                </span>
+                <span style="font-size:12px;color:#909399"> 万元</span>
+              </span>
+            </div>
+          </template>
+          <div ref="amountChartRef" style="height:240px"></div>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- 新增统计表格行 -->
+    <!-- 统计表格行：编写人员统计 + 项目经理统计 -->
     <el-row :gutter="16" style="margin-top:16px">
-      <!-- 编写人员系统数量统计 -->
       <el-col :span="12">
         <el-card shadow="never" header="编写人员系统数量统计">
           <el-table :data="writerStats" size="small" border style="width:100%" max-height="320">
             <el-table-column type="index" label="序号" width="55" align="center" />
-            <el-table-column prop="writerName" label="编写人员" min-width="100" />
-            <el-table-column prop="sysTotal" label="系统总数" width="90" align="center">
+            <el-table-column prop="writerName" label="编写人员" min-width="90" />
+            <el-table-column prop="sysTotal" label="系统总数" width="80" align="center">
               <template #default="{ row }">
                 <el-tag size="small" type="primary">{{ row.sysTotal || 0 }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="sysL2" label="2级系统" width="80" align="center">
+            <el-table-column prop="sysL2" label="2级" width="65" align="center">
               <template #default="{ row }">
                 <el-tag size="small" type="warning">{{ row.sysL2 || 0 }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="sysL3" label="3级系统" width="80" align="center">
+            <el-table-column prop="sysL3" label="3级" width="65" align="center">
               <template #default="{ row }">
                 <el-tag size="small" type="danger">{{ row.sysL3 || 0 }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="avgQualityScore" label="质量审核平均得分" min-width="130" align="center">
+            <el-table-column prop="avgQualityScore" label="质量审核均分" min-width="100" align="center">
               <template #default="{ row }">
                 <span v-if="row.avgQualityScore !== null && row.avgQualityScore !== undefined">
-                  <el-tag size="small" :type="row.avgQualityScore >= 90 ? 'success' : row.avgQualityScore >= 60 ? 'warning' : 'danger'">
+                  <el-tag size="small"
+                    :type="row.avgQualityScore >= 90 ? 'success' : row.avgQualityScore >= 60 ? 'warning' : 'danger'">
                     {{ row.avgQualityScore }}
                   </el-tag>
                 </span>
@@ -87,19 +103,19 @@
               </template>
             </el-table-column>
           </el-table>
-          <div v-if="writerStats.length === 0" style="text-align:center;color:#909399;padding:20px;font-size:13px">
+          <div v-if="writerStats.length === 0"
+            style="text-align:center;color:#909399;padding:20px;font-size:13px">
             暂无数据（请先在被测系统中配置编写人）
           </div>
         </el-card>
       </el-col>
 
-      <!-- 项目经理统计 -->
       <el-col :span="12">
         <el-card shadow="never" header="项目经理负责情况统计">
           <el-table :data="managerDetailStats" size="small" border style="width:100%" max-height="320">
             <el-table-column type="index" label="序号" width="55" align="center" />
-            <el-table-column prop="managerName" label="项目经理" min-width="100" />
-            <el-table-column prop="projectCnt" label="项目数" width="75" align="center">
+            <el-table-column prop="managerName" label="项目经理" min-width="90" />
+            <el-table-column prop="projectCnt" label="项目数" width="70" align="center">
               <template #default="{ row }">
                 <el-tag size="small" type="primary">{{ row.projectCnt || 0 }}</el-tag>
               </template>
@@ -109,18 +125,19 @@
                 <el-tag size="small">{{ row.sysTotal || 0 }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="sysL2" label="2级系统" width="75" align="center">
+            <el-table-column prop="sysL2" label="2级" width="65" align="center">
               <template #default="{ row }">
                 <el-tag size="small" type="warning">{{ row.sysL2 || 0 }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="sysL3" label="3级系统" width="75" align="center">
+            <el-table-column prop="sysL3" label="3级" width="65" align="center">
               <template #default="{ row }">
                 <el-tag size="small" type="danger">{{ row.sysL3 || 0 }}</el-tag>
               </template>
             </el-table-column>
           </el-table>
-          <div v-if="managerDetailStats.length === 0" style="text-align:center;color:#909399;padding:20px;font-size:13px">
+          <div v-if="managerDetailStats.length === 0"
+            style="text-align:center;color:#909399;padding:20px;font-size:13px">
             暂无数据
           </div>
         </el-card>
@@ -135,25 +152,27 @@ import * as echarts from 'echarts'
 import { projectApi } from '@/api/project'
 import { Folder, Clock, Check, Money, Grid, DataAnalysis } from '@element-plus/icons-vue'
 
-const statusChartRef = ref<HTMLElement>()
-const typeChartRef = ref<HTMLElement>()
+const typeChartRef    = ref<HTMLElement>()
 const industryChartRef = ref<HTMLElement>()
-const amountChartRef = ref<HTMLElement>()
+const regionChartRef  = ref<HTMLElement>()
+const amountChartRef  = ref<HTMLElement>()
 let charts: echarts.ECharts[] = []
 
-const typeYear = ref('')
+const typeYear    = ref('')
 const yearOptions = ref<string[]>([])
 
-const writerStats = ref<any[]>([])
+const writerStats        = ref<any[]>([])
 const managerDetailStats = ref<any[]>([])
+const regionEmpty        = ref(false)
+const amountTotalWan     = ref('0.00')
 
 const summaryCards = ref([
-  { label: '项目总数', value: 0, icon: 'Folder', color: '#409EFF' },
-  { label: '进行中', value: 0, icon: 'Clock', color: '#E6A23C' },
-  { label: '已完成', value: 0, icon: 'Check', color: '#67C23A' },
-  { label: '本年合同额(万元)', value: '0', icon: 'Money', color: '#F56C6C' },
-  { label: '2级系统数量', value: 0, icon: 'Grid', color: '#909399' },
-  { label: '3级系统数量', value: 0, icon: 'DataAnalysis', color: '#6E4AC6' },
+  { label: '项目总数',       value: 0,   icon: 'Folder',       color: '#409EFF' },
+  { label: '进行中',         value: 0,   icon: 'Clock',        color: '#E6A23C' },
+  { label: '已完成',         value: 0,   icon: 'Check',        color: '#67C23A' },
+  { label: '本年合同额(万元)', value: '0', icon: 'Money',        color: '#F56C6C' },
+  { label: '2级系统数量',    value: 0,   icon: 'Grid',         color: '#909399' },
+  { label: '3级系统数量',    value: 0,   icon: 'DataAnalysis', color: '#6E4AC6' },
 ])
 
 onMounted(async () => {
@@ -164,114 +183,166 @@ onMounted(async () => {
 })
 
 async function loadAll() {
-  await Promise.all([loadStats(), loadTableStats()])
+  await Promise.all([loadSummary(), loadCharts(), loadTableStats()])
 }
 
-async function loadStats() {
+// ── 汇总卡片 ──────────────────────────────────────────
+async function loadSummary() {
   try {
     const res: any = await projectApi.stats({ year: typeYear.value })
     const d = res.data
-    summaryCards.value[0].value = d.total || 0
+    summaryCards.value[0].value = d.total      || 0
     summaryCards.value[1].value = d.inProgress || 0
-    summaryCards.value[2].value = d.completed || 0
+    summaryCards.value[2].value = d.completed  || 0
     summaryCards.value[3].value = d.totalAmountWan || '0'
     summaryCards.value[4].value = d.sysCountL2 || 0
     summaryCards.value[5].value = d.sysCountL3 || 0
+  } catch {}
+}
 
-    renderStatusChart(d.statusDist || [])
-    renderTypeChart(d.typeDist || [])
-    renderIndustryChart(d.industryDist || [])
-    renderAmountChart(d.monthlyAmount || [])
-  } catch (e) {
-    renderStatusChart([
-      { name: '待启动', value: 5 }, { name: '进行中', value: 12 },
-      { name: '测评完成', value: 8 }, { name: '报告已出', value: 6 }, { name: '已归档', value: 20 }
+// ── 4个图表 ────────────────────────────────────────────
+async function loadCharts() {
+  try {
+    const [typeRes, indRes, regionRes, amtRes]: any[] = await Promise.all([
+      projectApi.statsByType(typeYear.value || undefined),
+      projectApi.statsByIndustry(typeYear.value || undefined),
+      projectApi.statsByRegion(typeYear.value || undefined),
+      projectApi.statsByAmount(typeYear.value || undefined),
     ])
-    renderTypeChart([
-      { name: '等保测评', value: 30 }, { name: '商密测评', value: 10 },
-      { name: '专项测评', value: 5 }, { name: '其他', value: 6 }
-    ])
-    renderIndustryChart([
-      { name: '政府', value: 15 }, { name: '电力', value: 12 }, { name: '金融', value: 8 },
-      { name: '教育', value: 6 }, { name: '医疗', value: 5 }, { name: '其他', value: 5 }
-    ])
-    renderAmountChart([
-      { month: '1月', amount: 12 }, { month: '2月', amount: 8 }, { month: '3月', amount: 15 },
-      { month: '4月', amount: 20 }, { month: '5月', amount: 18 }, { month: '6月', amount: 25 }
-    ])
+
+    // 项目类型分布 - 饼图
+    renderPieChart(typeChartRef.value!, typeRes.data || [], '项目类型')
+
+    // 所属行业分布 - 横向条形图
+    renderBarHChart(industryChartRef.value!, indRes.data || [], '项目数')
+
+    // 项目地区分布 - 饼图
+    const regionData = (regionRes.data || []).filter((d: any) => d.name)
+    regionEmpty.value = regionData.length === 0
+    if (regionData.length > 0) {
+      renderPieChart(regionChartRef.value!, regionData, '项目地区')
+    }
+
+    // 合同金额趋势 - 柱状图
+    const amtData = amtRes.data || {}
+    amountTotalWan.value = amtData.totalWan || '0.00'
+    renderAmountChart(amountChartRef.value!, amtData.monthly || [])
+
+  } catch {
+    // 加载失败时显示空图表
+    renderPieChart(typeChartRef.value!, [], '项目类型')
+    renderBarHChart(industryChartRef.value!, [], '项目数')
+    renderAmountChart(amountChartRef.value!, [])
   }
 }
 
+// ── 统计表格 ────────────────────────────────────────────
 async function loadTableStats() {
   try {
     const [writerRes, mgrRes]: any[] = await Promise.all([
       projectApi.statsByWriter(typeYear.value || undefined),
       projectApi.statsByManagerDetail(typeYear.value || undefined),
     ])
-    writerStats.value = writerRes.data || []
-    managerDetailStats.value = mgrRes.data || []
-  } catch (e) {
-    writerStats.value = []
+    writerStats.value        = writerRes.data || []
+    managerDetailStats.value = mgrRes.data   || []
+  } catch {
+    writerStats.value        = []
     managerDetailStats.value = []
   }
 }
 
-function initChart(ref: HTMLElement): echarts.ECharts {
-  const c = echarts.init(ref)
+// ── 图表渲染函数 ────────────────────────────────────────
+
+function getOrInitChart(el: HTMLElement): echarts.ECharts {
+  const existing = echarts.getInstanceByDom(el)
+  if (existing) return existing
+  const c = echarts.init(el)
   charts.push(c)
   return c
 }
 
-function renderStatusChart(data: any[]) {
-  if (!statusChartRef.value) return
-  const c = echarts.getInstanceByDom(statusChartRef.value) || initChart(statusChartRef.value)
+/** 饼图（项目类型 / 项目地区） */
+function renderPieChart(el: HTMLElement, data: any[], seriesName: string) {
+  if (!el) return
+  const c = getOrInitChart(el)
   c.setOption({
-    tooltip: { trigger: 'item' },
-    legend: { bottom: 0 },
+    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+    legend: { bottom: 0, type: 'scroll' },
     series: [{
-      type: 'pie', radius: ['40%', '70%'],
-      data: data.map(d => ({ name: d.name, value: d.value })),
-      emphasis: { itemStyle: { shadowBlur: 10 } }
+      name: seriesName,
+      type: 'pie',
+      radius: ['38%', '65%'],
+      center: ['50%', '44%'],
+      data: data.map((d: any) => ({ name: d.name || '未知', value: d.cnt ?? d.value ?? 0 })),
+      emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.3)' } },
+      label: { formatter: '{b}\n{d}%' },
     }]
-  })
+  }, true)
 }
 
-function renderTypeChart(data: any[]) {
-  if (!typeChartRef.value) return
-  const c = echarts.getInstanceByDom(typeChartRef.value) || initChart(typeChartRef.value)
+/** 横向条形图（所属行业分布） */
+function renderBarHChart(el: HTMLElement, data: any[], seriesName: string) {
+  if (!el) return
+  const c = getOrInitChart(el)
+  const sorted = [...data].sort((a: any, b: any) => (a.cnt ?? a.value ?? 0) - (b.cnt ?? b.value ?? 0))
   c.setOption({
-    tooltip: { trigger: 'item' },
-    legend: { bottom: 0 },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    grid: { left: '3%', right: '8%', bottom: '3%', containLabel: true },
+    xAxis: { type: 'value', minInterval: 1 },
+    yAxis: {
+      type: 'category',
+      data: sorted.map((d: any) => d.name || '未知'),
+      axisLabel: { fontSize: 12 }
+    },
     series: [{
-      type: 'pie', radius: '60%',
-      data: data.map(d => ({ name: d.name, value: d.value }))
+      name: seriesName,
+      type: 'bar',
+      data: sorted.map((d: any) => d.cnt ?? d.value ?? 0),
+      itemStyle: { color: '#409EFF', borderRadius: [0, 4, 4, 0] },
+      label: { show: true, position: 'right', color: '#606266' }
     }]
-  })
+  }, true)
 }
 
-function renderIndustryChart(data: any[]) {
-  if (!industryChartRef.value) return
-  const c = echarts.getInstanceByDom(industryChartRef.value) || initChart(industryChartRef.value)
-  c.setOption({
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: data.map(d => d.name) },
-    yAxis: { type: 'value' },
-    series: [{ type: 'bar', data: data.map(d => d.value), itemStyle: { color: '#409EFF' } }]
-  })
-}
+/** 合同金额趋势柱状图（月度，万元） */
+function renderAmountChart(el: HTMLElement, monthly: any[]) {
+  if (!el) return
+  const c = getOrInitChart(el)
+  const months = monthly.length > 0
+    ? monthly.map((m: any) => m.month)
+    : ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月']
+  const amounts = monthly.map((m: any) => parseFloat(m.amountWan) || 0)
 
-function renderAmountChart(data: any[]) {
-  if (!amountChartRef.value) return
-  const c = echarts.getInstanceByDom(amountChartRef.value) || initChart(amountChartRef.value)
   c.setOption({
-    tooltip: { trigger: 'axis' },
-    xAxis: { type: 'category', data: data.map(d => d.month) },
-    yAxis: { type: 'value', name: '万元' },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params: any) => {
+        const p = params[0]
+        return `${p.name}<br/>合同金额：<b>${p.value}</b> 万元`
+      }
+    },
+    grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+    xAxis: { type: 'category', data: months, axisLabel: { fontSize: 11 } },
+    yAxis: { type: 'value', name: '万元', nameTextStyle: { color: '#909399' } },
     series: [{
-      type: 'line', smooth: true, data: data.map(d => d.amount),
-      areaStyle: { opacity: 0.2 }, itemStyle: { color: '#67C23A' }
+      type: 'bar',
+      data: amounts,
+      itemStyle: {
+        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+          { offset: 0,   color: '#67C23A' },
+          { offset: 1,   color: '#b3e19d' },
+        ])
+      },
+      label: {
+        show: true,
+        position: 'top',
+        formatter: (p: any) => p.value > 0 ? p.value : '',
+        color: '#606266',
+        fontSize: 11
+      },
+      barMaxWidth: 40,
     }]
-  })
+  }, true)
 }
 
 onUnmounted(() => { charts.forEach(c => c.dispose()) })
@@ -282,8 +353,10 @@ onUnmounted(() => { charts.forEach(c => c.dispose()) })
 .stats-row {}
 .stat-card {}
 .stat-content { display: flex; align-items: center; gap: 16px; }
-.stat-icon { width: 52px; height: 52px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.stat-icon {
+  width: 52px; height: 52px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
 .stat-value { font-size: 24px; font-weight: 700; color: #303133; }
 .stat-label { font-size: 13px; color: #909399; margin-top: 4px; }
-.chart-filter { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 </style>

@@ -43,6 +43,10 @@ public interface ProjectService {
     List<Map<String, Object>> statsByWriter(String year);
     /** 按项目经理统计项目数和系统数 */
     List<Map<String, Object>> statsByManagerDetail(String year);
+    /** 按项目地区统计项目数 */
+    List<Map<String, Object>> statsByRegion(String year);
+    /** 合同金额统计：年度总金额(万元) + 月度金额列表 */
+    Map<String, Object> statsByAmount(String year);
 
     /** 汇总统计（供前端统计页面使用） */
     Map<String, Object> statsSummary(String year);

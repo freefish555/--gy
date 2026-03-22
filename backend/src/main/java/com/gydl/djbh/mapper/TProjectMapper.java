@@ -123,4 +123,23 @@ public interface TProjectMapper extends BaseMapper<TProject> {
             "GROUP BY p.project_manager_id, pm.real_name ORDER BY projectCnt DESC" +
             "</script>")
     List<Map<String, Object>> statsByManagerDetail(@Param("year") String year);
+
+    /** 按项目地区统计项目数 */
+    @Select("<script>" +
+            "SELECT di.item_label as name, COUNT(p.id) as cnt " +
+            "FROM t_project p LEFT JOIN t_dict_item di ON p.project_region = di.item_value " +
+            "LEFT JOIN t_dict d ON di.dict_id = d.id AND d.dict_code = 'PROJECT_REGION' " +
+            "WHERE p.project_region IS NOT NULL AND p.project_region != '' " +
+            "<if test='year != null and year != \"\"'>AND p.year_belong = #{year} </if>" +
+            "GROUP BY p.project_region, di.item_label ORDER BY cnt DESC" +
+            "</script>")
+    List<Map<String, Object>> statsByRegion(@Param("year") String year);
+
+    /** 查询指定年份的所有项目（用于合同金额统计，Java层解密求和） */
+    @Select("<script>" +
+            "SELECT id, contract_amount, contract_date, year_belong " +
+            "FROM t_project WHERE 1=1 " +
+            "<if test='year != null and year != \"\"'>AND year_belong = #{year} </if>" +
+            "</script>")
+    List<Map<String, Object>> findForAmountStats(@Param("year") String year);
 }

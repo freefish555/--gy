@@ -165,4 +165,18 @@ public class ProjectController {
     public Result<?> statsByManagerDetail(@RequestParam(required = false) String year) {
         return Result.ok(projectService.statsByManagerDetail(year));
     }
+
+    /** 项目统计 - 按项目地区 */
+    @GetMapping("/stats/region")
+    @PreAuthorize("hasAuthority('project:stats')")
+    public Result<?> statsByRegion(@RequestParam(required = false) String year) {
+        return Result.ok(projectService.statsByRegion(year));
+    }
+
+    /** 项目统计 - 合同金额（年度总额 + 月度明细） */
+    @GetMapping("/stats/amount")
+    @PreAuthorize("hasAuthority('project:stats')")
+    public Result<?> statsByAmount(@RequestParam(required = false) String year) {
+        return Result.ok(projectService.statsByAmount(year));
+    }
 }
