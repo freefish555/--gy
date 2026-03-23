@@ -24,6 +24,10 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response: AxiosResponse) => {
     const { data } = response
+    // 如果是blob/arraybuffer类型（文件下载），直接返回完整response
+    if (response.config.responseType === 'blob' || response.config.responseType === 'arraybuffer') {
+      return response
+    }
     if (data.code === 200) {
       return data
     }

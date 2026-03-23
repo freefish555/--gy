@@ -12,11 +12,6 @@
         <el-form-item label="客户名称">
           <el-input v-model="queryForm.customerName" placeholder="请输入客户名称" clearable style="width:180px" />
         </el-form-item>
-        <el-form-item label="项目状态">
-          <el-select v-model="queryForm.projectStatus" placeholder="全部" clearable style="width:130px" multiple>
-            <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="所属年份">
           <el-date-picker v-model="queryForm.yearBelong" type="year" value-format="YYYY"
             placeholder="选择年份" style="width:120px" />
@@ -44,6 +39,15 @@
                 <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
               </el-select>
             </el-form-item>
+            <el-form-item label="项目组成员">
+              <el-input v-model="queryForm.memberName" placeholder="输入成员姓名" clearable style="width:150px" />
+            </el-form-item>
+            <el-form-item label="项目负责人">
+              <el-input v-model="queryForm.projectLeaderName" placeholder="输入负责人姓名" clearable style="width:150px" />
+            </el-form-item>
+            <el-form-item label="实际测评人员" :label-width="'100px'">
+              <el-input v-model="queryForm.actualMemberName" placeholder="输入姓名" clearable style="width:130px" />
+            </el-form-item>
             <el-form-item label="项目类型">
               <el-select v-model="queryForm.projectTypeId" clearable placeholder="全部" style="width:130px">
                 <el-option v-for="d in projectTypeOptions" :key="d.id" :label="d.itemLabel" :value="d.id" />
@@ -52,6 +56,11 @@
             <el-form-item label="所属行业">
               <el-select v-model="queryForm.industryId" clearable placeholder="全部" style="width:130px">
                 <el-option v-for="d in industryOptions" :key="d.id" :label="d.itemLabel" :value="d.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="项目地区">
+              <el-select v-model="queryForm.projectRegion" clearable placeholder="全部" style="width:130px">
+                <el-option v-for="d in regionOptions" :key="d.itemValue" :label="d.itemLabel" :value="d.itemValue" />
               </el-select>
             </el-form-item>
             <el-form-item label="签订日期">
@@ -73,6 +82,34 @@
             v-if="authStore.hasPermission('project:create')"
             @click="$router.push('/project/create')"
           >新增项目</el-button>
+
+          <!-- 导入按钮 -->
+          <el-dropdown v-if="authStore.hasPermission('project:create')" @command="handleImportCommand">
+            <el-button :icon="Upload">
+              导入<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="download">下载导入模板</el-dropdown-item>
+                <el-dropdown-item command="import">上传导入文件</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
+          <!-- 导出按钮 -->
+          <el-dropdown v-if="authStore.hasPermission('project:export')" @command="handleExportCommand">
+            <el-button :icon="Download">
+              导出<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="query">导出当前查询结果</el-dropdown-item>
+                <el-dropdown-item command="all">导出全部项目(含人员列)</el-dropdown-item>
+                <el-dropdown-item command="full">导出全部项目(完整版多Sheet)</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+
           <el-button
             :disabled="selectedIds.length === 0"
             @click="showBatchDialog = true"
@@ -80,11 +117,6 @@
           >
             批量操作 <span v-if="selectedIds.length > 0">({{ selectedIds.length }})</span>
           </el-button>
-          <el-button
-            :icon="Download"
-            v-if="authStore.hasPermission('project:export')"
-            @click="handleExport"
-          >导出Excel</el-button>
         </div>
         <div class="toolbar-right">
           <el-tooltip content="自定义列">
@@ -119,11 +151,27 @@
           :show-overflow-tooltip="true"
         >
           <template #default="{ row }">
-            <!-- 项目状态 -->
-            <template v-if="col.prop === 'projectStatus'">
-              <el-tag :type="getStatusType(row.projectStatus)" size="small">
-                {{ getStatusLabel(row.projectStatus) }}
-              </el-tag>
+            <!-- 项目名称：不折行+省略+tooltip -->
+            <template v-if="col.prop === 'projectName'">
+              <el-tooltip :content="row.projectName" placement="top" :disabled="!row.projectName" effect="dark">
+                <span class="text-ellipsis">{{ row.projectName || '-' }}</span>
+              </el-tooltip>
+            </template>
+            <!-- 被测系统：显示系统名称合并 -->
+            <template v-else-if="col.prop === 'systemNameMerged'">
+              <el-tooltip :content="row.systemNameMerged" placement="top" :disabled="!row.systemNameMerged">
+                <span>{{ row.systemNameMerged || '-' }}</span>
+              </el-tooltip>
+            </template>
+            <!-- 系统等级：聚合标签 -->
+            <template v-else-if="col.prop === 'sysLevels'">
+              <span v-if="row.sysCountL2 > 0">
+                <el-tag type="info" size="small" style="margin-right:4px">二级×{{ row.sysCountL2 }}</el-tag>
+              </span>
+              <span v-if="row.sysCountL3 > 0">
+                <el-tag type="warning" size="small">三级×{{ row.sysCountL3 }}</el-tag>
+              </span>
+              <span v-if="!row.sysCountL2 && !row.sysCountL3">-</span>
             </template>
             <!-- 纸质归档 -->
             <template v-else-if="col.prop === 'paperArchived'">
@@ -131,11 +179,13 @@
                 {{ row.paperArchived ? '已归档' : '未归档' }}
               </el-tag>
             </template>
-            <!-- 系统等级聚合 -->
-            <template v-else-if="col.prop === 'sysLevels'">
-              <el-tag v-for="(sys, i) in (row.systems || [])" :key="i" size="small"
-                style="margin-right:2px">{{ sys.sysLevel }}级</el-tag>
+            <!-- 电子归档 -->
+            <template v-else-if="col.prop === 'electronicArchived'">
+              <el-tag :type="row.electronicArchived ? 'success' : 'info'" size="small">
+                {{ row.electronicArchived ? '已归档' : '未归档' }}
+              </el-tag>
             </template>
+            <!-- 默认 -->
             <template v-else>{{ row[col.prop] || '-' }}</template>
           </template>
         </el-table-column>
@@ -150,7 +200,7 @@
               v-if="canEdit(row)"
               @click="$router.push(`/project/edit/${row.id}`)">编辑</el-button>
             <el-popconfirm
-              v-if="authStore.hasPermission('project:delete') && row.projectStatus !== 4"
+              v-if="authStore.hasPermission('project:delete')"
               title="确认删除该项目吗？"
               @confirm="handleDelete(row.id)"
             >
@@ -176,73 +226,135 @@
     </el-card>
 
     <!-- 自定义列配置 -->
-    <el-drawer v-model="showColumnConfig" title="自定义显示列" size="320px">
+    <el-drawer v-model="showColumnConfig" title="自定义显示列" size="340px">
       <div class="column-config">
-        <div v-for="col in allColumns" :key="col.prop" class="column-item">
-          <el-checkbox v-model="col.visible">{{ col.label }}</el-checkbox>
-        </div>
+        <el-text type="info" size="small" style="display:block;margin-bottom:12px">
+          勾选需要在列表中显示的字段
+        </el-text>
+        <el-checkbox-group v-model="visibleProps">
+          <div v-for="col in allColumns" :key="col.prop" class="column-item">
+            <el-checkbox :label="col.prop">{{ col.label }}</el-checkbox>
+          </div>
+        </el-checkbox-group>
       </div>
       <template #footer>
         <el-button @click="resetColumns">恢复默认</el-button>
         <el-button type="primary" @click="saveColumnConfig">保存</el-button>
       </template>
     </el-drawer>
+
+    <!-- 批量操作对话框 -->
+    <el-dialog v-model="showBatchDialog" title="批量操作" width="400px">
+      <el-form label-width="100px">
+        <el-form-item label="操作类型">
+          <el-select v-model="batchAction" style="width:100%">
+            <el-option label="批量修改项目经理" value="manager" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="batchAction === 'manager'" label="项目经理">
+          <el-select v-model="batchValue" filterable placeholder="请选择" style="width:100%">
+            <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showBatchDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleBatchUpdate">确认执行</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 导入结果对话框 -->
+    <el-dialog v-model="showImportResult" title="导入结果" width="600px">
+      <el-descriptions :column="3" border size="small" style="margin-bottom:16px">
+        <el-descriptions-item label="总计行数">{{ importResult.totalCount }}</el-descriptions-item>
+        <el-descriptions-item label="成功导入">
+          <el-text type="success">{{ importResult.successCount }}</el-text>
+        </el-descriptions-item>
+        <el-descriptions-item label="跳过/失败">
+          <el-text :type="importResult.skipCount > 0 ? 'danger' : 'info'">{{ importResult.skipCount }}</el-text>
+        </el-descriptions-item>
+      </el-descriptions>
+      <div v-if="importResult.errors && importResult.errors.length > 0">
+        <el-text type="warning" size="small">错误/跳过详情：</el-text>
+        <div class="import-error-list">
+          <div v-for="(err, idx) in importResult.errors" :key="idx" class="import-error-item">
+            <el-icon color="#E6A23C"><WarningFilled /></el-icon>
+            <span>{{ err }}</span>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button type="primary" @click="showImportResult = false; loadList()">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 隐藏的文件上传input -->
+    <input
+      ref="fileInputRef"
+      type="file"
+      accept=".xlsx,.xls"
+      style="display:none"
+      @change="handleFileChange"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Download, Grid, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Download, Upload, Grid, ArrowDown, ArrowUp, WarningFilled } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import request from '@/utils/request'
 
 const authStore = useAuthStore()
 
-// 状态选项
-const statusOptions = [
-  { value: 0, label: '待启动' },
-  { value: 1, label: '已分配' },
-  { value: 2, label: '进行中' },
-  { value: 3, label: '已完成' },
-  { value: 4, label: '电子归档' }
+// ========== 所有可配置列定义 ==========
+const DEFAULT_VISIBLE = ['projectNo', 'projectName', 'customerName', 'systemNameMerged',
+  'sysLevels', 'projectTypeName', 'projectManagerName', 'yearBelong']
+
+const allColumns = [
+  { prop: 'projectNo',           label: '项目编号',      width: 150 },
+  { prop: 'projectName',         label: '项目名称',      minWidth: 200 },
+  { prop: 'customerName',        label: '客户名称',      minWidth: 160 },
+  { prop: 'customerAddress',     label: '客户地址',      minWidth: 160 },
+  { prop: 'customerContact',     label: '联系人',        width: 100 },
+  { prop: 'customerPhone',       label: '联系电话',      width: 130 },
+  { prop: 'systemNameMerged',    label: '被测系统',      minWidth: 200 },
+  { prop: 'sysLevels',           label: '系统等级',      width: 140 },
+  { prop: 'sysCountL2',          label: '2级系统数',     width: 90 },
+  { prop: 'sysCountL3',          label: '3级系统数',     width: 90 },
+  { prop: 'sysCount',            label: '系统数量',       width: 80 },
+  { prop: 'projectGroupMembers', label: '项目组成员',    minWidth: 150 },
+  { prop: 'actualMemberNames',   label: '实际测评人员',  minWidth: 150 },
+  { prop: 'projectTypeName',     label: '项目类型',      width: 90 },
+  { prop: 'industryName',        label: '所属行业',      width: 100 },
+  { prop: 'projectManagerName',  label: '项目经理',      width: 100 },
+  { prop: 'projectLeaderName',   label: '项目负责人',    width: 110 },
+  { prop: 'contractDate',        label: '合同日期',      width: 110 },
+  { prop: 'contractAmount',      label: '合同金额(元)',  width: 120 },
+  { prop: 'paperArchived',       label: '纸质归档',      width: 90 },
+  { prop: 'electronicArchived',  label: '电子归档',      width: 90 },
+  { prop: 'yearBelong',          label: '所属年份',      width: 90 },
+  { prop: 'businessPerson',      label: '业务人员',      width: 100 },
+  { prop: 'projectRegion',       label: '项目地区',      width: 100 },
+  { prop: 'phasePrepare',        label: '测评准备阶段',  minWidth: 180 },
+  { prop: 'phasePlan',           label: '方案编制阶段',  minWidth: 180 },
+  { prop: 'phaseOnsite',         label: '现场测评阶段',  minWidth: 180 },
+  { prop: 'phaseReport',         label: '报告编制阶段',  minWidth: 180 },
+  { prop: 'taskAppointDate',     label: '任务预约日期',  width: 120 },
+  { prop: 'reportMailDate',      label: '报告邮寄日期',  width: 120 },
+  { prop: 'reportMailNo',        label: '报告邮寄单号',  width: 130 },
+  { prop: 'createdAt',           label: '创建时间',      width: 160 },
 ]
 
-function getStatusLabel(status: number) {
-  return statusOptions.find(s => s.value === status)?.label || '-'
-}
-
-function getStatusType(status: number): '' | 'success' | 'warning' | 'info' | 'danger' {
-  const map: Record<number, any> = { 0: 'info', 1: '', 2: 'warning', 3: 'success', 4: 'success' }
-  return map[status] ?? 'info'
-}
-
-// 列配置
-const allColumns = reactive([
-  { prop: 'projectNo',      label: '项目编号',   width: 150,  visible: true },
-  { prop: 'projectName',    label: '项目名称',   minWidth: 200, visible: true },
-  { prop: 'customerName',   label: '客户名称',   minWidth: 160, visible: true },
-  { prop: 'systemNameMerged', label: '被测系统', minWidth: 160, visible: true },
-  { prop: 'sysLevels',      label: '系统等级',   width: 120,  visible: true },
-  { prop: 'projectTypeName',label: '项目类型',   width: 90,   visible: true },
-  { prop: 'projectManagerName', label: '项目经理', width: 100, visible: true },
-  { prop: 'projectStatus',  label: '项目状态',   width: 100,  visible: true },
-  { prop: 'paperArchived',  label: '纸质归档',   width: 90,   visible: false },
-  { prop: 'contractDate',   label: '合同日期',   width: 110,  visible: false },
-  { prop: 'yearBelong',     label: '所属年份',   width: 90,   visible: true },
-  { prop: 'createdAt',      label: '创建时间',   width: 160,  visible: false }
-])
-
-const visibleColumns = computed(() => allColumns.filter(c => c.visible))
+const visibleProps = ref<string[]>([...DEFAULT_VISIBLE])
+const visibleColumns = computed(() =>
+  allColumns.filter(c => visibleProps.value.includes(c.prop))
+)
 const showColumnConfig = ref(false)
-const showAdvanced = ref(false)
 
 function resetColumns() {
-  allColumns.forEach(c => {
-    c.visible = ['projectNo', 'projectName', 'customerName', 'systemNameMerged',
-                  'sysLevels', 'projectTypeName', 'projectManagerName',
-                  'projectStatus', 'yearBelong'].includes(c.prop)
-  })
+  visibleProps.value = [...DEFAULT_VISIBLE]
 }
 
 function saveColumnConfig() {
@@ -250,24 +362,30 @@ function saveColumnConfig() {
   ElMessage.success('列配置已保存')
 }
 
-// 查询
+// ========== 查询 ==========
+const showAdvanced = ref(false)
 const queryForm = reactive({
   pageNum: 1, pageSize: 20,
   projectNo: '', projectName: '', customerName: '',
-  projectStatus: undefined as any, yearBelong: '',
-  recordNo: '', projectManagerId: undefined as any,
-  projectTypeId: undefined as any, industryId: undefined as any
+  yearBelong: '', recordNo: '',
+  projectManagerId: undefined as any,
+  projectTypeId: undefined as any,
+  industryId: undefined as any,
+  projectRegion: undefined as any,
+  memberName: '',
+  actualMemberName: '',
+  projectLeaderName: '',
 })
 const dateRange = ref<string[]>([])
-const showBatchDialog = ref(false)
-const tableRef = ref()
 const loading = ref(false)
 const tableData = ref<any[]>([])
 const total = ref(0)
 const selectedIds = ref<number[]>([])
+const tableRef = ref()
 const staffOptions = ref<any[]>([])
 const projectTypeOptions = ref<any[]>([])
 const industryOptions = ref<any[]>([])
+const regionOptions = ref<any[]>([])
 
 onMounted(() => {
   loadList()
@@ -279,9 +397,8 @@ async function loadList() {
   try {
     const params = {
       ...queryForm,
-      projectStatus: queryForm.projectStatus?.join(','),
       contractDateFrom: dateRange.value?.[0],
-      contractDateTo: dateRange.value?.[1]
+      contractDateTo: dateRange.value?.[1],
     }
     const res: any = await request.get('/project/page', { params })
     tableData.value = res.data.records
@@ -293,14 +410,16 @@ async function loadList() {
 
 async function loadOptions() {
   try {
-    const [staffRes, typeRes, industryRes]: any[] = await Promise.all([
+    const [staffRes, typeRes, industryRes, regionRes]: any[] = await Promise.all([
       request.get('/staff/list'),
-      request.get('/dict/items?code=PROJECT_TYPE'),
-      request.get('/dict/items?code=INDUSTRY')
+      request.get('/system/dict/PROJECT_TYPE/items'),
+      request.get('/system/dict/INDUSTRY/items'),
+      request.get('/system/dict/PROJECT_REGION/items'),
     ])
-    staffOptions.value = staffRes.data
-    projectTypeOptions.value = typeRes.data
-    industryOptions.value = industryRes.data
+    staffOptions.value = staffRes.data || []
+    projectTypeOptions.value = typeRes.data || []
+    industryOptions.value = industryRes.data || []
+    regionOptions.value = regionRes.data || []
   } catch {}
 }
 
@@ -312,8 +431,14 @@ function handleSearch() {
 function handleReset() {
   Object.assign(queryForm, {
     pageNum: 1, projectNo: '', projectName: '', customerName: '',
-    projectStatus: undefined, yearBelong: '', recordNo: '',
-    projectManagerId: undefined, projectTypeId: undefined, industryId: undefined
+    yearBelong: '', recordNo: '',
+    projectManagerId: undefined,
+    projectTypeId: undefined,
+    industryId: undefined,
+    projectRegion: undefined,
+    memberName: '',
+    actualMemberName: '',
+    projectLeaderName: '',
   })
   dateRange.value = []
   loadList()
@@ -337,9 +462,124 @@ async function handleDelete(id: number) {
   loadList()
 }
 
-async function handleExport() {
-  ElMessage.info('正在导出，请稍候...')
-  // TODO: 下载Excel
+// ========== 批量操作 ==========
+const showBatchDialog = ref(false)
+const batchAction = ref('manager')
+const batchValue = ref<any>(null)
+
+async function handleBatchUpdate() {
+  if (!batchValue.value) { ElMessage.warning('请选择操作值'); return }
+  try {
+    await request.post('/project/batch', {
+      ids: selectedIds.value,
+      action: batchAction.value,
+      value: batchValue.value,
+    })
+    ElMessage.success('批量操作成功')
+    showBatchDialog.value = false
+    loadList()
+  } catch (e: any) {
+    ElMessage.error(e.message || '操作失败')
+  }
+}
+
+// ========== 导出 ==========
+async function handleExportCommand(cmd: string) {
+  try {
+    ElMessage.info('正在生成Excel，请稍候...')
+
+    let res: any
+    let fileName: string
+
+    if (cmd === 'full') {
+      // 完整版多Sheet导出
+      res = await request.get('/project/export/full', { responseType: 'blob' })
+      fileName = `项目完整版_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.xlsx`
+    } else {
+      const params: any = {
+        ...queryForm,
+        contractDateFrom: dateRange.value?.[0],
+        contractDateTo: dateRange.value?.[1],
+        exportAll: cmd === 'all',
+      }
+      // 移除分页参数
+      delete params.pageNum
+      delete params.pageSize
+      res = await request.get('/project/export', { params, responseType: 'blob' })
+      const suffix = cmd === 'all' ? '全部' : '查询结果'
+      fileName = `项目列表_${suffix}_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '')}.xlsx`
+    }
+
+    const blobData = (res as any)?.data || res
+    const blob = blobData instanceof Blob ? blobData : new Blob([blobData], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch (e: any) {
+    ElMessage.error('导出失败: ' + (e.message || '未知错误'))
+  }
+}
+
+// ========== 导入 ==========
+const fileInputRef = ref<HTMLInputElement>()
+const importLoading = ref(false)
+const showImportResult = ref(false)
+const importResult = ref<any>({ successCount: 0, skipCount: 0, totalCount: 0, errors: [] })
+
+function handleImportCommand(cmd: string) {
+  if (cmd === 'download') {
+    downloadImportTemplate()
+  } else if (cmd === 'import') {
+    fileInputRef.value?.click()
+  }
+}
+
+async function downloadImportTemplate() {
+  try {
+    const res = await request.get('/project/import/template', { responseType: 'blob' })
+    const blobData2 = (res as any)?.data || res
+    const blob2 = blobData2 instanceof Blob ? blobData2 : new Blob([blobData2], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    })
+    const url = URL.createObjectURL(blob2)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = '项目批量导入模板.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success('模板下载成功')
+  } catch (e: any) {
+    ElMessage.error('模板下载失败')
+  }
+}
+
+async function handleFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (!input.files || input.files.length === 0) return
+  const file = input.files[0]
+  input.value = '' // 重置，允许重复选择同一文件
+
+  const formData = new FormData()
+  formData.append('file', file)
+  importLoading.value = true
+  try {
+    ElMessage.info('正在导入，请稍候...')
+    const res: any = await request.post('/project/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    importResult.value = res.data
+    showImportResult.value = true
+  } catch (e: any) {
+    ElMessage.error('导入失败: ' + (e.message || '未知错误'))
+  } finally {
+    importLoading.value = false
+  }
 }
 </script>
 
@@ -352,12 +592,43 @@ async function handleExport() {
   align-items: center;
   margin-bottom: 12px;
 }
-.toolbar-left, .toolbar-right { display: flex; gap: 8px; }
+.toolbar-left { display: flex; gap: 8px; align-items: center; }
+.toolbar-right { display: flex; gap: 8px; }
 .pagination-wrap {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
 }
-.column-config { padding: 8px 0; }
-.column-item { padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+.column-config { padding: 4px 0; }
+.column-item {
+  padding: 6px 4px;
+  border-bottom: 1px solid #f5f5f5;
+}
+.import-error-list {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-top: 8px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  padding: 8px;
+  background: #fafafa;
+}
+.import-error-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 0;
+  font-size: 13px;
+  color: #606266;
+  border-bottom: 1px dashed #f0f0f0;
+}
+.import-error-item:last-child { border-bottom: none; }
+.text-ellipsis {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  vertical-align: middle;
+}
 </style>

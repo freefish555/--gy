@@ -20,7 +20,8 @@ public class ProjectDetailResp {
     private String customerContact;
     private String customerPhone;
     private String systemNameMerged;
-    private String taskNo;
+    private Integer sysCountL2;
+    private Integer sysCountL3;
 
     // 字典关联
     private Long projectTypeId;
@@ -36,12 +37,11 @@ public class ProjectDetailResp {
 
     // 合同
     private LocalDate contractDate;
-    private String contractAmount;  // 返回时脱敏或解密
+    private String contractAmount;
 
-    // 状态
-    private Integer projectStatus;
-    private String projectStatusName;
+    // 归档标识
     private Integer paperArchived;
+    private Integer electronicArchived;
 
     // 阶段时间
     private String phasePrepare;
@@ -58,9 +58,31 @@ public class ProjectDetailResp {
     private LocalDate reportMailDate;
     private String reportMailNo;
 
+    // 创建人（用于前端判断当前用户是否为项目创建者）
+    private Long createdBy;
+
     // 时间戳
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // 系统总数（L2 + L3）
+    private Integer sysCount;
+
+    // 项目组成员（role_type=registered_evaluator的成员姓名，顿号分隔）
+    private String projectGroupMembers;
+
+    // 实际测评人员（role_type=actual_member的成员姓名，顿号分隔）
+    private String actualMemberNames;
+
+    // 各角色人员姓名汇总（用于宽表导出）
+    private String surveyEditorNames;
+    private String planEditorNames;
+    private String reportEditorNames;
+    private String networkEvaluatorNames;
+    private String hostEvaluatorNames;
+    private String physicalEvaluatorNames;
+    private String toolScannerNames;
+    private String pentestMemberNames;
 
     // 被测系统列表
     private List<Map<String, Object>> systems;

@@ -18,5 +18,10 @@ public interface StaffService extends IService<TStaff> {
     void update(Long id, TStaff staff);
     void delete(Long id);
     void toggleStatus(Long id);
+    void setStatus(Long id, Integer status);
     List<Map<String, Object>> listActive();
+    List<Map<String, Object>> listByPosition(String position);
+    void exportExcel(StaffQueryReq req, jakarta.servlet.http.HttpServletResponse response) throws Exception;
+    void downloadImportTemplate(jakarta.servlet.http.HttpServletResponse response) throws Exception;
+    java.util.Map<String, Object> importStaff(org.springframework.web.multipart.MultipartFile file) throws Exception;
 }

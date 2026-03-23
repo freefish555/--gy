@@ -30,8 +30,6 @@ public class ProjectQueryReq {
     private Long projectTypeId;
     /** 所属行业字典项ID */
     private Long industryId;
-    /** 项目状态（多选，逗号分隔） */
-    private String projectStatus;
     /** 业务人员（模糊） */
     private String businessPerson;
     /** 合同签订日期起 */
@@ -40,6 +38,16 @@ public class ProjectQueryReq {
     private String contractDateTo;
     /** 所属年份 */
     private String yearBelong;
+    /** 关键词（模糊，同时匹配项目编号OR项目名称，用于归档管理等快速搜索） */
+    private String keyword;
+    /** 项目组成员姓名（模糊，解密后匹配，筛选role_type=registered_evaluator的成员） */
+    private String memberName;
+    /** 实际测评人员姓名（模糊，解密后匹配，筛选role_type=actual_member的成员） */
+    private String actualMemberName;
+    /** 项目负责人姓名（模糊，解密后匹配） */
+    private String projectLeaderName;
+    /** 项目地区字典值（精确匹配） */
+    private String projectRegion;
     /** 排序字段 */
     private String sortField = "created_at";
     /** 排序方向 asc/desc */

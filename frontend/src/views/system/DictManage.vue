@@ -175,7 +175,8 @@ function openItemDialog(row?: any) {
 async function saveItem() {
   await itemFormRef.value?.validate(async (valid: boolean) => {
     if (!valid) return
-    const payload = { ...itemForm, dictId: selectedType.value.id }
+    // include dictCode so createItem can build the correct URL path
+    const payload = { ...itemForm, dictId: selectedType.value.id, dictCode: selectedType.value.dictCode }
     if (itemEditId.value) await dictApi.updateItem(itemEditId.value, payload)
     else await dictApi.createItem(payload)
     ElMessage.success('保存成功'); itemDialog.value = false; loadItems()

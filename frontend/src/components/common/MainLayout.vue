@@ -4,8 +4,7 @@
     <el-aside :width="isCollapsed ? '64px' : '220px'" class="layout-aside">
       <!-- Logo -->
       <div class="sidebar-logo">
-        <el-icon color="#fff" :size="24"><Lock /></el-icon>
-        <span v-if="!isCollapsed" class="logo-text">等保项目管理</span>
+        <img src="/new_logo_2.png" alt="logo" class="sidebar-logo-full" />
       </div>
 
       <!-- 菜单 -->
@@ -19,13 +18,19 @@
         @select="handleMenuSelect"
         class="sidebar-menu"
       >
-        <!-- 项目管理 -->
-        <el-sub-menu index="project">
+        <!-- 项目管理（需有项目相关权限，且安全管理员、日志管理员、系统管理员不显示） -->
+        <el-sub-menu
+          index="project"
+          v-if="!isSecurityAdmin && !isSysAdmin && authStore.hasAnyPermission('project:view:all','project:view:own','project:create','project:stats')"
+        >
           <template #title>
             <el-icon><Folder /></el-icon>
             <span>项目管理</span>
           </template>
-          <el-menu-item index="/project/list">
+          <el-menu-item
+            index="/project/list"
+            v-if="authStore.hasAnyPermission('project:view:all','project:view:own')"
+          >
             <el-icon><List /></el-icon>
             <span>项目总览</span>
           </el-menu-item>
@@ -48,7 +53,7 @@
         <!-- 归档管理 -->
         <el-sub-menu
           index="archive"
-          v-if="authStore.hasPermission('archive:create')"
+          v-if="!isSysAdmin && authStore.hasPermission('archive:create')"
         >
           <template #title>
             <el-icon><Document /></el-icon>
@@ -63,7 +68,7 @@
         <!-- 系统设置 -->
         <el-sub-menu
           index="system"
-          v-if="authStore.hasAnyPermission('system:config','system:user','system:staff','system:device','system:dict','archive:template')"
+          v-if="authStore.hasAnyPermission('system:config','system:user','system:staff','system:dict','archive:template','system:role')"
         >
           <template #title>
             <el-icon><Setting /></el-icon>
@@ -73,17 +78,18 @@
             <el-icon><Tools /></el-icon>
             <span>系统参数设置</span>
           </el-menu-item>
-          <el-menu-item v-if="authStore.hasPermission('system:user')" index="/system/user">
+          <!-- 安全管理员不显示管理员设置菜单；系统管理员有此权限 -->
+          <el-menu-item v-if="authStore.hasPermission('system:user') && !isSecurityAdmin" index="/system/user">
             <el-icon><UserFilled /></el-icon>
             <span>管理员设置</span>
+          </el-menu-item>
+          <el-menu-item v-if="authStore.hasPermission('system:role')" index="/system/role">
+            <el-icon><Key /></el-icon>
+            <span>角色权限管理</span>
           </el-menu-item>
           <el-menu-item v-if="authStore.hasPermission('system:staff')" index="/system/staff">
             <el-icon><Avatar /></el-icon>
             <span>项目人员清单</span>
-          </el-menu-item>
-          <el-menu-item v-if="authStore.hasPermission('system:device')" index="/system/device">
-            <el-icon><Monitor /></el-icon>
-            <span>测评工具清单</span>
           </el-menu-item>
           <el-menu-item v-if="authStore.hasPermission('system:dict')" index="/system/dict">
             <el-icon><Menu /></el-icon>
@@ -98,7 +104,7 @@
         <!-- 日志管理 -->
         <el-sub-menu
           index="log"
-          v-if="authStore.hasAnyPermission('log:login:view','log:operation:view','log:server:config')"
+          v-if="!isSysAdmin && authStore.hasAnyPermission('log:login:view','log:operation:view','log:server:config')"
         >
           <template #title>
             <el-icon><Document /></el-icon>
@@ -182,6 +188,43 @@
     </el-container>
   </el-container>
 
+  <!-- 个人信息弹窗 -->
+  <el-dialog v-model="showProfile" title="个人信息" width="420px">
+    <el-descriptions :column="1" border>
+      <el-descriptions-item label="用户名">{{ authStore.userInfo?.username }}</el-descriptions-item>
+      <el-descriptions-item label="姓名">{{ authStore.userInfo?.realName }}</el-descriptions-item>
+      <el-descriptions-item label="角色">{{ authStore.userInfo?.roleName }}</el-descriptions-item>
+    </el-descriptions>
+    <template #footer>
+      <el-button type="primary" @click="showProfile=false">关闭</el-button>
+    </template>
+  </el-dialog>
+
+  <!-- 双因子认证弹窗 -->
+  <el-dialog v-model="showTotpDialog" title="绑定双因子认证" width="480px" @close="resetTotpDialog">
+    <div v-if="totpStep === 1" style="text-align:center">
+      <el-alert type="info" :closable="false" style="margin-bottom:16px;text-align:left">
+        请使用 Google Authenticator 或 Authy 扫描以下二维码，然后输入验证码完成绑定。
+      </el-alert>
+      <img :src="totpQrCode" style="width:200px;height:200px;border:1px solid #eee" />
+      <p style="margin-top:8px;font-size:12px;color:#909399">手动输入密钥：{{ totpSecret }}</p>
+      <el-form style="margin-top:16px">
+        <el-form-item label="验证码" label-width="70px">
+          <el-input v-model="totpConfirmCode" placeholder="请输入6位验证码" maxlength="6" style="width:200px" />
+        </el-form-item>
+      </el-form>
+    </div>
+    <div v-else-if="totpStep === 0" style="text-align:center;color:#909399;padding:20px">
+      <p>正在加载二维码...</p>
+    </div>
+    <template #footer>
+      <el-button @click="showTotpDialog=false">取消</el-button>
+      <el-button type="primary" :loading="totpLoading" @click="confirmTotpBind" :disabled="!totpConfirmCode || totpConfirmCode.length !== 6">
+        确认绑定
+      </el-button>
+    </template>
+  </el-dialog>
+
   <!-- 修改密码弹窗 -->
   <el-dialog v-model="showChangePassword" title="修改密码" width="420px">
     <el-form :model="passwordForm" :rules="passwordRules" ref="passwordFormRef" label-width="80px">
@@ -203,21 +246,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Folder, List, Plus, TrendCharts, Document, Files, Setting, Tools,
-  UserFilled, Avatar, Monitor, Menu, CopyDocument, Key, Tickets,
+  UserFilled, Avatar, Menu, CopyDocument, Key, Tickets,
   Connection, Fold, Expand, ArrowDown, User, Lock, SwitchButton
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import request from '@/utils/request'
+import QRCode from 'qrcode'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const isCollapsed = ref(false)
+
+/** 是否为安全管理员角色（用于控制菜单显示） */
+const isSecurityAdmin = computed(() => authStore.userInfo?.roleCode === 'SECURITY_ADMIN')
+/** 是否为系统管理员角色（仅显示系统设置菜单） */
+const isSysAdmin = computed(() => authStore.userInfo?.roleCode === 'SYS_ADMIN')
 
 // 菜单导航（替代 el-menu 的 router prop，避免注入问题）
 function handleMenuSelect(index: string) {
@@ -239,6 +288,16 @@ const breadcrumbs = computed(() => {
 const showChangePassword = ref(false)
 const pwdLoading = ref(false)
 const passwordFormRef = ref()
+
+// 首次登录自动弹出修改密码
+onMounted(() => {
+  if (authStore.userInfo?.firstLogin) {
+    setTimeout(() => {
+      ElMessage.warning({ message: '首次登录，请先修改密码', duration: 4000 })
+      showChangePassword.value = true
+    }, 800)
+  }
+})
 const passwordForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' })
 const passwordRules = {
   oldPassword: [{ required: true, message: '请输入原密码' }],
@@ -258,13 +317,32 @@ const passwordRules = {
   ]
 }
 
+// 个人信息弹窗
+const showProfile = ref(false)
+const showTotpDialog = ref(false)
+const totpQrCode = ref('')
+const totpSecret = ref('')
+const totpStep = ref(0)
+const totpConfirmCode = ref('')
+const totpLoading = ref(false)
+
+function resetTotpDialog() {
+  totpQrCode.value = ''
+  totpSecret.value = ''
+  totpStep.value = 0
+  totpConfirmCode.value = ''
+}
+
 function handleUserCommand(cmd: string) {
   switch (cmd) {
+    case 'profile':
+      showProfile.value = true
+      break
     case 'password':
       showChangePassword.value = true
       break
     case 'totp':
-      router.push('/system/totp')
+      loadTotpQr()
       break
     case 'logout':
       ElMessageBox.confirm('确认退出登录？', '提示', { type: 'warning' })
@@ -274,6 +352,46 @@ function handleUserCommand(cmd: string) {
           router.push('/login')
         })
       break
+  }
+}
+
+async function loadTotpQr() {
+  resetTotpDialog()
+  showTotpDialog.value = true
+  try {
+    const res: any = await request.post('/auth/totp/bind')
+    const qrUrl = res.data?.qrUrl || res.data?.qrCode || ''
+    totpSecret.value = res.data?.secret || ''
+    // 使用 qrcode 库将 otpauth:// URL 生成 base64 图片
+    if (qrUrl) {
+      totpQrCode.value = await QRCode.toDataURL(qrUrl, { width: 200, margin: 1 })
+    } else {
+      totpQrCode.value = ''
+    }
+    totpStep.value = 1
+  } catch (e: any) {
+    showTotpDialog.value = false
+    ElMessage.error('获取双因子认证信息失败: ' + (e.message || '请联系管理员'))
+  }
+}
+
+async function confirmTotpBind() {
+  if (!totpConfirmCode.value || totpConfirmCode.value.length !== 6) {
+    ElMessage.warning('请输入6位验证码')
+    return
+  }
+  totpLoading.value = true
+  try {
+    await request.post('/auth/totp/confirm', {
+      secret: totpSecret.value,
+      code: parseInt(totpConfirmCode.value)
+    })
+    ElMessage.success('双因子认证绑定成功')
+    showTotpDialog.value = false
+  } catch (e: any) {
+    ElMessage.error('绑定失败: ' + (e.message || '验证码错误，请重试'))
+  } finally {
+    totpLoading.value = false
   }
 }
 
@@ -315,8 +433,31 @@ async function submitChangePassword() {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: #000c17;
+  background: #ffffff;
   flex-shrink: 0;
+  padding: 8px 12px;
+}
+
+.sidebar-logo-full {
+  max-height: 44px;
+  max-width: 180px;
+  width: auto;
+  object-fit: contain;
+}
+
+.sidebar-logo-img {
+  max-height: 44px;
+  max-width: 44px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.sidebar-logo-icon {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 4px;
 }
 
 .logo-text {

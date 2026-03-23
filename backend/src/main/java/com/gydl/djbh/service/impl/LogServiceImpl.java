@@ -8,10 +8,13 @@ import com.gydl.djbh.mapper.TLoginLogMapper;
 import com.gydl.djbh.mapper.TOperationLogMapper;
 import com.gydl.djbh.service.LogService;
 import com.gydl.djbh.utils.SecurityContextUtil;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -36,8 +39,8 @@ public class LogServiceImpl implements LogService {
         TLoginLog loginLog = new TLoginLog();
         loginLog.setUsername(username);
         loginLog.setRealName(realName);
-        loginLog.setClientIp(clientIp);
-        loginLog.setLoginResult(1);
+        loginLog.setLoginIp(clientIp);
+        loginLog.setLoginStatus(1);
         loginLogMapper.insert(loginLog);
     }
 
@@ -45,8 +48,8 @@ public class LogServiceImpl implements LogService {
     public void recordLoginFail(String username, String clientIp, String reason) {
         TLoginLog loginLog = new TLoginLog();
         loginLog.setUsername(username);
-        loginLog.setClientIp(clientIp);
-        loginLog.setLoginResult(0);
+        loginLog.setLoginIp(clientIp);
+        loginLog.setLoginStatus(0);
         loginLog.setFailReason(reason);
         loginLogMapper.insert(loginLog);
     }
@@ -60,9 +63,25 @@ public class LogServiceImpl implements LogService {
             opLog.setUserId(userId);
             opLog.setUsername(username != null ? username : "SYSTEM");
             opLog.setModule(module);
-            opLog.setAction(action);
-            opLog.setDescription(description);
-            opLog.setResult("SUCCESS".equalsIgnoreCase(result) ? 1 : 0);
+            opLog.setActionType(action);
+            opLog.setActionDesc(description);
+            opLog.setOpResult("SUCCESS".equalsIgnoreCase(result) ? 1 : 0);
+            // 获取客户端IP
+            try {
+                ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+                if (attrs != null) {
+                    HttpServletRequest req = attrs.getRequest();
+                    String ip = req.getHeader("X-Forwarded-For");
+                    if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+                        ip = req.getHeader("X-Real-IP");
+                    }
+                    if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+                        ip = req.getRemoteAddr();
+                    }
+                    if (ip != null && ip.contains(",")) ip = ip.split(",")[0].trim();
+                    opLog.setOpIp(ip);
+                }
+            } catch (Exception ignored) {}
             operationLogMapper.insert(opLog);
         } catch (Exception e) {
             log.error("记录操作日志失败", e);
@@ -73,11 +92,11 @@ public class LogServiceImpl implements LogService {
     public PageResult<Map<String, Object>> pageLoginLog(LogQueryReq req) {
         int offset = (req.getPage() - 1) * req.getPageSize();
         List<TLoginLog> list = loginLogMapper.findPage(
-                req.getUsername(), req.getLoginResult(),
+                req.getUsername(), req.getLoginResultFilter(),
                 req.getStartTime(), req.getEndTime(),
                 offset, req.getPageSize());
         long total = loginLogMapper.countPage(
-                req.getUsername(), req.getLoginResult(),
+                req.getUsername(), req.getLoginResultFilter(),
                 req.getStartTime(), req.getEndTime());
 
         List<Map<String, Object>> result = new ArrayList<>();
@@ -86,10 +105,12 @@ public class LogServiceImpl implements LogService {
             item.put("id", log.getId());
             item.put("username", log.getUsername());
             item.put("realName", log.getRealName());
-            item.put("clientIp", log.getClientIp());
-            item.put("loginResult", log.getLoginResult());
+            item.put("loginIp", log.getLoginIp());
+            item.put("loginStatus", log.getLoginStatus());
             item.put("failReason", log.getFailReason());
-            item.put("createdAt", log.getCreatedAt());
+            item.put("loginAt", log.getLoginAt());
+            item.put("logoutAt", log.getLogoutAt());
+            item.put("sessionDuration", log.getSessionDuration());
             result.add(item);
         }
         return PageResult.of(result, total, req.getPage(), req.getPageSize());
@@ -99,10 +120,10 @@ public class LogServiceImpl implements LogService {
     public PageResult<Map<String, Object>> pageOperationLog(LogQueryReq req) {
         int offset = (req.getPage() - 1) * req.getPageSize();
         List<TOperationLog> list = operationLogMapper.findPage(
-                req.getUsername(), req.getModule(), req.getAction(), req.getResult(),
+                req.getUsername(), req.getModule(), req.getAction(), req.getOpResultFilter(),
                 req.getStartTime(), req.getEndTime(), offset, req.getPageSize());
         long total = operationLogMapper.countPage(
-                req.getUsername(), req.getModule(), req.getAction(), req.getResult(),
+                req.getUsername(), req.getModule(), req.getAction(), req.getOpResultFilter(),
                 req.getStartTime(), req.getEndTime());
 
         List<Map<String, Object>> result = new ArrayList<>();
@@ -112,13 +133,20 @@ public class LogServiceImpl implements LogService {
             item.put("userId", log.getUserId());
             item.put("username", log.getUsername());
             item.put("module", log.getModule());
-            item.put("action", log.getAction());
-            item.put("description", log.getDescription());
-            item.put("result", log.getResult());
-            item.put("errorMsg", log.getErrorMsg());
-            item.put("clientIp", log.getClientIp());
+            // 前端使用 actionType、actionDesc、opIp、opAt、opResult 字段名
+            item.put("action", log.getActionType());
+            item.put("actionType", log.getActionType());
+            item.put("description", log.getActionDesc());
+            item.put("actionDesc", log.getActionDesc());
+            item.put("opResult", log.getOpResult());
+            item.put("result", log.getOpResult());
+            item.put("errorMsg", log.getFailReason());
+            item.put("opIp", log.getOpIp());
+            item.put("clientIp", log.getOpIp());
             item.put("costMs", log.getCostMs());
-            item.put("createdAt", log.getCreatedAt());
+            item.put("opAt", log.getOpAt());
+            item.put("createdAt", log.getOpAt());
+            item.put("requestParams", log.getRequestParams());
             result.add(item);
         }
         return PageResult.of(result, total, req.getPage(), req.getPageSize());
@@ -130,9 +158,9 @@ public class LogServiceImpl implements LogService {
         req.setPage(1);
         PageResult<Map<String, Object>> pageResult = pageLoginLog(req);
         exportToCsv(response, "login_log.csv",
-                new String[]{"用户名", "真实姓名", "客户端IP", "登录结果", "失败原因", "时间"},
+                new String[]{"用户名", "真实姓名", "登录IP", "登录状态", "失败原因", "登录时间", "退出时间"},
                 pageResult.getList(),
-                new String[]{"username", "realName", "clientIp", "loginResult", "failReason", "createdAt"});
+                new String[]{"username", "realName", "loginIp", "loginStatus", "failReason", "loginAt", "logoutAt"});
     }
 
     @Override
@@ -141,9 +169,9 @@ public class LogServiceImpl implements LogService {
         req.setPage(1);
         PageResult<Map<String, Object>> pageResult = pageOperationLog(req);
         exportToCsv(response, "operation_log.csv",
-                new String[]{"用户名", "模块", "操作", "描述", "结果", "客户端IP", "耗时(ms)", "时间"},
+                new String[]{"用户名", "模块", "操作类型", "操作描述", "结果", "操作IP", "操作时间"},
                 pageResult.getList(),
-                new String[]{"username", "module", "action", "description", "result", "clientIp", "costMs", "createdAt"});
+                new String[]{"username", "module", "actionType", "actionDesc", "opResult", "opIp", "opAt"});
     }
 
     private void exportToCsv(HttpServletResponse response, String fileName,

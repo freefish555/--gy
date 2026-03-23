@@ -29,7 +29,7 @@
           <template #default="{ row }">
             <el-button type="primary" link size="small" :icon="Download" @click="download(row)">下载</el-button>
             <el-upload
-              :action="`/api/archive/template/${row.id}/replace`"
+              :action="`/api/archive/templates/${row.id}/replace`"
               :headers="uploadHeaders"
               :on-success="() => { ElMessage.success('替换成功'); loadData() }"
               :show-file-list="false"
@@ -54,7 +54,7 @@ import { archiveApi } from '@/api/system'
 const loading = ref(false)
 const templateList = ref<any[]>([])
 
-const uploadUrl = '/api/archive/template/upload'
+const uploadUrl = '/api/archive/templates/upload'
 const uploadHeaders = computed(() => ({
   Authorization: `Bearer ${localStorage.getItem('token')}`
 }))
@@ -80,8 +80,11 @@ function formatSize(bytes: number) {
 async function download(row: any) {
   try {
     const res: any = await archiveApi.templateDownload(row.id)
-    const url = URL.createObjectURL(new Blob([res]))
-    const a = document.createElement('a'); a.href = url; a.download = row.templateName
+    // res is AxiosResponse when responseType is 'blob'
+    const blobData = res?.data || res
+    const blob = blobData instanceof Blob ? blobData : new Blob([blobData])
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = row.fileOriginalName || row.templateName
     a.click(); URL.revokeObjectURL(url)
   } catch (e: any) { ElMessage.error('下载失败') }
 }

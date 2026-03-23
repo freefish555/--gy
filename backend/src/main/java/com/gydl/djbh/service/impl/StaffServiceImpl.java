@@ -1,5 +1,8 @@
 package com.gydl.djbh.service.impl;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.context.AnalysisContext;
+import com.alibaba.excel.event.AnalysisEventListener;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.gydl.djbh.crypto.SM4Util;
 import com.gydl.djbh.dto.req.StaffQueryReq;
@@ -10,14 +13,19 @@ import com.gydl.djbh.mapper.TStaffMapper;
 import com.gydl.djbh.service.LogService;
 import com.gydl.djbh.service.StaffService;
 import com.gydl.djbh.utils.SecurityContextUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.*;
 
 /**
  * 人员管理服务实现
@@ -30,18 +38,59 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
     private final SM4Util sm4Util;
     private final LogService logService;
 
+    private static final String[] EXPORT_HEADERS = {
+            "工号*", "姓名*", "部门", "职位", "职级", "证书编号", "证书到期日(YYYY-MM-DD)", "电话", "邮箱", "状态(1启用/0停用)"
+    };
+
     @Override
     public PageResult<Map<String, Object>> page(StaffQueryReq req) {
+        // 获取姓名搜索词（realName字段，加密存储需Java层过滤）
+        String nameKeyword = req.getRealName();
+        if (nameKeyword == null || nameKeyword.isEmpty()) {
+            nameKeyword = req.getKeyword();
+        }
+        String department = req.getDepartment();
+
+        // 判断是否需要Java层姓名过滤（realName加密，SQL无法LIKE）
+        boolean hasNameFilter = nameKeyword != null && !nameKeyword.isEmpty();
+
+        if (hasNameFilter) {
+            // 获取全量数据（按部门、状态、职级过滤，department可SQL过滤）
+            List<TStaff> allList = baseMapper.findAllForFilter(department, req.getRoleLevel(), req.getStatus());
+            // Java层解密realName后过滤
+            final String nameKw = nameKeyword.toLowerCase().trim();
+            List<TStaff> filtered = new ArrayList<>();
+            for (TStaff s : allList) {
+                String decryptedName = decryptSafe(s.getRealName());
+                if (decryptedName != null && decryptedName.toLowerCase().contains(nameKw)) {
+                    filtered.add(s);
+                }
+            }
+            long total = filtered.size();
+            int offset = (req.getPage() - 1) * req.getPageSize();
+            int end = Math.min(offset + req.getPageSize(), filtered.size());
+            List<TStaff> pageList = offset < filtered.size() ? filtered.subList(offset, end) : new ArrayList<>();
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (TStaff s : pageList) { result.add(toMap(s)); }
+            return PageResult.of(total, req.getPage(), req.getPageSize(), result);
+        }
+
+        // 无姓名过滤：直接走SQL分页（keyword搜索工号，department可SQL过滤）
         int offset = (req.getPage() - 1) * req.getPageSize();
-        List<TStaff> list = baseMapper.findPage(req.getKeyword(), req.getRoleLevel(),
+        // keyword用于工号模糊搜索（非姓名），department单独过滤
+        String keyword = req.getKeyword();
+        List<TStaff> list = baseMapper.findPage(keyword, department, req.getRoleLevel(),
                 req.getStatus(), offset, req.getPageSize());
-        long total = baseMapper.countPage(req.getKeyword(), req.getRoleLevel(), req.getStatus());
+        long total = baseMapper.countPage(keyword, department, req.getRoleLevel(), req.getStatus());
 
         List<Map<String, Object>> result = new ArrayList<>();
-        for (TStaff s : list) {
-            result.add(toMap(s));
-        }
+        for (TStaff s : list) { result.add(toMap(s)); }
         return PageResult.of(total, req.getPage(), req.getPageSize(), result);
+    }
+
+    private String decryptSafe(String encrypted) {
+        if (encrypted == null || encrypted.isEmpty()) return "";
+        try { return sm4Util.decrypt(encrypted); } catch (Exception e) { return ""; }
     }
 
     @Override
@@ -92,6 +141,14 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
     }
 
     @Override
+    public void setStatus(Long id, Integer status) {
+        TStaff staff = baseMapper.selectById(id);
+        if (staff == null) throw new BusinessException("人员不存在");
+        staff.setStatus(status);
+        baseMapper.updateById(staff);
+    }
+
+    @Override
     public List<Map<String, Object>> listActive() {
         List<TStaff> list = baseMapper.findAllActive();
         List<Map<String, Object>> result = new ArrayList<>();
@@ -104,6 +161,174 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
             item.put("roleLevel", s.getRoleLevel());
             result.add(item);
         }
+        return result;
+    }
+
+    @Override
+    public List<Map<String, Object>> listByPosition(String position) {
+        List<TStaff> list = baseMapper.findAllActive();
+        List<Map<String, Object>> result = new ArrayList<>();
+        // 支持逗号分隔的多职位过滤，如 "测评师,项目经理,项目负责人"
+        java.util.Set<String> posSet = null;
+        if (position != null && !position.isEmpty()) {
+            posSet = new java.util.HashSet<>(java.util.Arrays.asList(position.split(",")));
+        }
+        for (TStaff s : list) {
+            if (posSet != null && !posSet.contains(s.getPosition())) continue;
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", s.getId());
+            item.put("staffNo", s.getStaffNo());
+            item.put("realName", decrypt(s.getRealName()));
+            item.put("position", s.getPosition());
+            item.put("roleLevel", s.getRoleLevel());
+            result.add(item);
+        }
+        return result;
+    }
+
+    @Override
+    public void exportExcel(StaffQueryReq req, HttpServletResponse response) throws Exception {
+        // 导出全量匹配结果（不分页）
+        req.setPage(1);
+        req.setPageSize(10000);
+        // 导出复用page()逻辑，获取全部符合条件的数据
+        PageResult<Map<String, Object>> pageResult = page(req);
+        // 将Map列表转为TStaff列表用于后续Excel写入（已解密）
+        List<Map<String, Object>> exportData = pageResult.getRecords();
+
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("人员清单");
+            // 表头
+            Row header = sheet.createRow(0);
+            CellStyle headerStyle = wb.createCellStyle();
+            headerStyle.setFillForegroundColor(IndexedColors.CORNFLOWER_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            Font headerFont = wb.createFont();
+            headerFont.setBold(true);
+            headerFont.setColor(IndexedColors.WHITE.getIndex());
+            headerStyle.setFont(headerFont);
+            for (int i = 0; i < EXPORT_HEADERS.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(EXPORT_HEADERS[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 4000);
+            }
+            // 数据行
+            int rowNum = 1;
+            for (Map<String, Object> s : exportData) {
+                Row row = sheet.createRow(rowNum++);
+                row.createCell(0).setCellValue(s.get("staffNo") != null ? s.get("staffNo").toString() : "");
+                row.createCell(1).setCellValue(s.get("realName") != null ? s.get("realName").toString() : "");
+                row.createCell(2).setCellValue(s.get("department") != null ? s.get("department").toString() : "");
+                row.createCell(3).setCellValue(s.get("position") != null ? s.get("position").toString() : "");
+                row.createCell(4).setCellValue(s.get("roleLevel") != null ? s.get("roleLevel").toString() : "");
+                row.createCell(5).setCellValue(s.get("certNo") != null ? s.get("certNo").toString() : "");
+                row.createCell(6).setCellValue(s.get("certExpire") != null ? s.get("certExpire").toString() : "");
+                row.createCell(7).setCellValue(s.get("phone") != null ? s.get("phone").toString() : "");
+                row.createCell(8).setCellValue(s.get("email") != null ? s.get("email").toString() : "");
+                Object statusVal = s.get("status");
+                row.createCell(9).setCellValue(statusVal != null ? Integer.parseInt(statusVal.toString()) : 1);
+            }
+            String filename = URLEncoder.encode("人员清单.xlsx", StandardCharsets.UTF_8);
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename=" + filename);
+            wb.write(response.getOutputStream());
+        }
+    }
+
+    @Override
+    public void downloadImportTemplate(HttpServletResponse response) throws Exception {
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet sheet = wb.createSheet("人员导入模板");
+            Row header = sheet.createRow(0);
+            CellStyle headerStyle = wb.createCellStyle();
+            headerStyle.setFillForegroundColor(IndexedColors.LIGHT_YELLOW.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            Font headerFont = wb.createFont();
+            headerFont.setBold(true);
+            headerStyle.setFont(headerFont);
+            for (int i = 0; i < EXPORT_HEADERS.length; i++) {
+                Cell cell = header.createCell(i);
+                cell.setCellValue(EXPORT_HEADERS[i]);
+                cell.setCellStyle(headerStyle);
+                sheet.setColumnWidth(i, 5000);
+            }
+            // 示例行
+            Row example = sheet.createRow(1);
+            example.createCell(0).setCellValue("S001");
+            example.createCell(1).setCellValue("张三");
+            example.createCell(2).setCellValue("技术部");
+            example.createCell(3).setCellValue("测评工程师");
+            example.createCell(4).setCellValue("junior");
+            example.createCell(5).setCellValue("CERT-2024-001");
+            example.createCell(6).setCellValue("2026-12-31");
+            example.createCell(7).setCellValue("13800138000");
+            example.createCell(8).setCellValue("zhangsan@example.com");
+            example.createCell(9).setCellValue(1);
+
+            String filename = URLEncoder.encode("人员导入模板.xlsx", StandardCharsets.UTF_8);
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment; filename=" + filename);
+            wb.write(response.getOutputStream());
+        }
+    }
+
+    @Override
+    public Map<String, Object> importStaff(MultipartFile file) throws Exception {
+        List<Map<Integer, String>> rows = new ArrayList<>();
+        EasyExcel.read(file.getInputStream(), new AnalysisEventListener<Map<Integer, String>>() {
+            @Override
+            public void invoke(Map<Integer, String> data, AnalysisContext context) {
+                rows.add(data);
+            }
+            @Override
+            public void doAfterAllAnalysed(AnalysisContext context) {}
+        }).headRowNumber(1).sheet().doRead();
+
+        int success = 0, skip = 0;
+        List<String> errors = new ArrayList<>();
+
+        for (int i = 0; i < rows.size(); i++) {
+            Map<Integer, String> row = rows.get(i);
+            try {
+                String staffNo = row.getOrDefault(0, "").trim();
+                String realName = row.getOrDefault(1, "").trim();
+                if (staffNo.isEmpty() || realName.isEmpty()) {
+                    errors.add("第" + (i + 2) + "行：工号和姓名不能为空");
+                    skip++;
+                    continue;
+                }
+                TStaff staff = new TStaff();
+                staff.setStaffNo(staffNo);
+                staff.setRealName(encrypt(realName));
+                staff.setDepartment(row.getOrDefault(2, "").trim());
+                staff.setPosition(row.getOrDefault(3, "").trim());
+                staff.setRoleLevel(row.getOrDefault(4, "middle").trim());
+                String certNo = row.getOrDefault(5, "").trim();
+                staff.setCertNo(certNo.isEmpty() ? null : encrypt(certNo));
+                String certExpireStr = row.getOrDefault(6, "").trim();
+                if (!certExpireStr.isEmpty()) {
+                    try { staff.setCertExpire(LocalDate.parse(certExpireStr)); } catch (Exception e) { /* ignore */ }
+                }
+                String phone = row.getOrDefault(7, "").trim();
+                staff.setPhone(phone.isEmpty() ? null : encrypt(phone));
+                String email = row.getOrDefault(8, "").trim();
+                staff.setEmail(email.isEmpty() ? null : encrypt(email));
+                String statusStr = row.getOrDefault(9, "1").trim();
+                staff.setStatus("0".equals(statusStr) ? 0 : 1);
+                staff.setCreatedBy(SecurityContextUtil.getCurrentUserIdSafe());
+                baseMapper.insert(staff);
+                success++;
+            } catch (Exception e) {
+                errors.add("第" + (i + 2) + "行：" + e.getMessage());
+                skip++;
+            }
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("totalCount", rows.size());
+        result.put("successCount", success);
+        result.put("skipCount", skip);
+        result.put("errors", errors);
         return result;
     }
 

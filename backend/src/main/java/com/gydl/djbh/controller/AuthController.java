@@ -6,12 +6,14 @@ import cn.hutool.core.util.IdUtil;
 import com.gydl.djbh.dto.req.LoginReq;
 import com.gydl.djbh.dto.resp.LoginResp;
 import com.gydl.djbh.dto.resp.Result;
+import com.gydl.djbh.exception.BusinessException;
 import com.gydl.djbh.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -55,9 +57,35 @@ public class AuthController {
     @PostMapping("/login")
     public Result<LoginResp> login(@Valid @RequestBody LoginReq req,
                                     HttpServletRequest request) {
+        // 校验图形验证码
+        verifyCaptcha(req.getCaptchaId(), req.getCaptchaCode());
+
         String clientIp = getClientIp(request);
         LoginResp resp = authService.login(req, clientIp);
         return Result.ok(resp);
+    }
+
+    /**
+     * 验证图形验证码（验证后立即从缓存中删除，防止重复使用）
+     */
+    private void verifyCaptcha(String captchaId, String captchaCode) {
+        if (!StringUtils.hasText(captchaId) || !StringUtils.hasText(captchaCode)) {
+            throw new BusinessException(400, "验证码不能为空");
+        }
+        Cache cache = cacheManager.getCache("captcha");
+        if (cache == null) {
+            throw new BusinessException(500, "验证码服务异常，请刷新重试");
+        }
+        Cache.ValueWrapper wrapper = cache.get(captchaId);
+        if (wrapper == null) {
+            throw new BusinessException(400, "验证码已过期，请刷新重试");
+        }
+        String expected = (String) wrapper.get();
+        // 验证后立即删除，防止重放
+        cache.evict(captchaId);
+        if (!captchaCode.toLowerCase().equals(expected)) {
+            throw new BusinessException(400, "验证码错误，请重新输入");
+        }
     }
 
     /**

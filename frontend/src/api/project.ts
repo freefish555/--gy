@@ -13,7 +13,6 @@ export interface ProjectQuery {
   projectLeaderId?: number
   projectTypeId?: number
   industryId?: number
-  projectStatus?: string
   businessPerson?: string
   contractDateFrom?: string
   contractDateTo?: string
@@ -28,12 +27,32 @@ export const projectApi = {
   create: (data: any) => request.post('/project', data),
   update: (id: number, data: any) => request.put(`/project/${id}`, data),
   delete: (id: number) => request.delete(`/project/${id}`),
-  batchDelete: (ids: number[]) => request.delete('/project/batch', { data: { ids } }),
-  batchUpdateStatus: (ids: number[], status: number) =>
-    request.put('/project/batch/status', { ids, status }),
-  export: (params: ProjectQuery) =>
-    request.post('/project/export', params, { responseType: 'blob' }),
+  batchUpdate: (body: any) => request.post('/project/batch', body),
+
+  /** 导出Excel */
+  exportExcel: (params: ProjectQuery & { exportAll?: boolean }) =>
+    request.get('/project/export', { params, responseType: 'blob' }),
+
+  /** 下载导入模板 */
+  downloadImportTemplate: () =>
+    request.get('/project/import/template', { responseType: 'blob' }),
+
+  /** 批量导入 */
+  importProjects: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request.post('/project/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+
+  // 统计
   stats: (params?: any) => request.get('/project/stats', { params }),
   statsByType: (year?: string) => request.get('/project/stats/type', { params: { year } }),
   statsByIndustry: (year?: string) => request.get('/project/stats/industry', { params: { year } }),
+  statsByManager: (year?: string) => request.get('/project/stats/manager', { params: { year } }),
+  statsByWriter: (year?: string) => request.get('/project/stats/writer', { params: { year } }),
+  statsByManagerDetail: (year?: string) => request.get('/project/stats/manager-detail', { params: { year } }),
+  statsByRegion: (year?: string) => request.get('/project/stats/region', { params: { year } }),
+  statsByAmount: (year?: string) => request.get('/project/stats/amount', { params: { year } }),
 }

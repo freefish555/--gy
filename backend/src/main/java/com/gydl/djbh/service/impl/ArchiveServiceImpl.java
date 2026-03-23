@@ -6,8 +6,15 @@ import com.gydl.djbh.exception.BusinessException;
 import com.gydl.djbh.mapper.*;
 import com.gydl.djbh.service.ArchiveService;
 import com.gydl.djbh.utils.SecurityContextUtil;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xwpf.usermodel.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -34,6 +41,7 @@ public class ArchiveServiceImpl implements ArchiveService {
 
     private final TProjectMapper projectMapper;
     private final TProjectSystemMapper systemMapper;
+    private final TProjectMemberMapper memberMapper;
     private final TStaffMapper staffMapper;
     private final TEvalDeviceMapper deviceMapper;
     private final TPentestToolMapper toolMapper;
@@ -92,7 +100,7 @@ public class ArchiveServiceImpl implements ArchiveService {
 
                     if (docBytes != null) {
                         // 文件名：原模板名，替换xmbh为项目编号
-                        String fileName = template.getFileName()
+                        String fileName = template.getFileOriginalName()
                                 .replace("xmbh", projectNoPlain)
                                 .replace("XMBH", projectNoPlain);
                         zos.putNextEntry(new ZipEntry(fileName));
@@ -118,11 +126,11 @@ public class ArchiveServiceImpl implements ArchiveService {
             map.put("templateName", t.getTemplateName());
             map.put("templateCode", t.getTemplateCode());
             map.put("templateCategory", t.getTemplateCategory());
-            map.put("fileName", t.getFileName());
+            map.put("fileName", t.getFileOriginalName());
             map.put("fileSize", t.getFileSize());
             map.put("version", t.getVersion());
             map.put("status", t.getStatus());
-            map.put("createdAt", t.getCreatedAt());
+            map.put("updatedAt", t.getUploadAt());
             result.add(map);
         }
         return result;
@@ -158,10 +166,10 @@ public class ArchiveServiceImpl implements ArchiveService {
             existing = existingList.get(0);
             existing.setTemplateName(templateName);
             existing.setTemplateCategory(templateCategory);
-            existing.setFileName(originalFilename);
+            existing.setFileOriginalName(originalFilename);
             existing.setFilePath(filePath.toString());
             existing.setFileSize((long) fileBytes.length);
-            existing.setVersion(existing.getVersion() + 1);
+            existing.setVersion("v" + (parseVersionNum(existing.getVersion()) + 1) + ".0");
             existing.setStatus(1);
             templateMapper.updateById(existing);
             return existing.getId();
@@ -171,12 +179,13 @@ public class ArchiveServiceImpl implements ArchiveService {
         template.setTemplateName(templateName);
         template.setTemplateCode(templateCode);
         template.setTemplateCategory(templateCategory);
-        template.setFileName(originalFilename);
+        template.setFileOriginalName(originalFilename);
         template.setFilePath(filePath.toString());
         template.setFileSize((long) fileBytes.length);
-        template.setVersion(1);
+        template.setVersion("v1.0");
+        template.setIsDefault(1);
         template.setStatus(1);
-        template.setCreatedBy(SecurityContextUtil.getCurrentUserIdSafe());
+        template.setUploadBy(SecurityContextUtil.getCurrentUserIdSafe());
         templateMapper.insert(template);
         return template.getId();
     }
@@ -190,9 +199,74 @@ public class ArchiveServiceImpl implements ArchiveService {
     }
 
     @Override
+    public void replaceTemplate(Long id, byte[] fileBytes, String originalFilename) {
+        TArchiveTemplate template = templateMapper.selectById(id);
+        if (template == null) throw new BusinessException("模板不存在");
+
+        // 保存新文件
+        Path dir = Paths.get(templateDir);
+        try {
+            Files.createDirectories(dir);
+        } catch (Exception e) {
+            throw new BusinessException("创建模板目录失败");
+        }
+        String storedName = System.currentTimeMillis() + "_" + originalFilename;
+        Path filePath = dir.resolve(storedName);
+        try {
+            Files.write(filePath, fileBytes);
+        } catch (Exception e) {
+            throw new BusinessException("保存模板文件失败: " + e.getMessage());
+        }
+
+        // 更新数据库记录
+        template.setFileOriginalName(originalFilename);
+        template.setFilePath(filePath.toString());
+        template.setFileSize((long) fileBytes.length);
+        template.setVersion("v" + (parseVersionNum(template.getVersion()) + 1) + ".0");
+        template.setStatus(1);
+        templateMapper.updateById(template);
+    }
+
+    @Override
     public List<Map<String, Object>> listArchiveHistory(Long projectId) {
         // 返回归档记录（如果有归档日志表，此处扩展）
         return new ArrayList<>();
+    }
+
+    // In-memory store for generated archives (projectId -> zip bytes)
+    private final Map<Long, byte[]> archiveStore = new java.util.concurrent.ConcurrentHashMap<>();
+
+    @Override
+    public String storeArchive(Long projectId, byte[] zipBytes) {
+        archiveStore.put(projectId, zipBytes);
+        return "archive_" + projectId + ".zip";
+    }
+
+    @Override
+    public byte[] getStoredArchive(Long projectId) {
+        return archiveStore.get(projectId);
+    }
+
+    @Override
+    public void downloadTemplate(Long id, HttpServletResponse response) throws Exception {
+        TArchiveTemplate template = templateMapper.selectById(id);
+        if (template == null) throw new BusinessException("模板不存在");
+
+        Path filePath = Paths.get(template.getFilePath());
+        if (!Files.exists(filePath)) {
+            throw new BusinessException("模板文件不存在，请重新上传");
+        }
+
+        byte[] fileBytes = Files.readAllBytes(filePath);
+        String fileName = template.getFileOriginalName() != null
+                ? template.getFileOriginalName() : "template.docx";
+
+        response.setContentType("application/octet-stream");
+        response.setHeader("Content-Disposition",
+                "attachment; filename=\"" + java.net.URLEncoder.encode(fileName, "UTF-8") + "\"");
+        response.setContentLength(fileBytes.length);
+        response.getOutputStream().write(fileBytes);
+        response.getOutputStream().flush();
     }
 
     // ==================== 核心：占位符替换 ====================
@@ -209,7 +283,7 @@ public class ArchiveServiceImpl implements ArchiveService {
         }
 
         byte[] fileBytes = Files.readAllBytes(filePath);
-        String lowerName = template.getFileName().toLowerCase();
+        String lowerName = template.getFileOriginalName() != null ? template.getFileOriginalName().toLowerCase() : filePath.getFileName().toString().toLowerCase();
 
         if (lowerName.endsWith(".docx")) {
             return replaceDocxPlaceholders(fileBytes, placeholders);
@@ -222,8 +296,8 @@ public class ArchiveServiceImpl implements ArchiveService {
                 return fileBytes;
             }
         } else if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
-            // Excel模板处理（简化版：直接返回）
-            return fileBytes;
+            // Excel模板：替换占位符
+            return replaceXlsxPlaceholders(fileBytes, placeholders);
         }
 
         return fileBytes;
@@ -270,14 +344,68 @@ public class ArchiveServiceImpl implements ArchiveService {
     }
 
     /**
+     * 替换 .xlsx/.xls 文件中的占位符
+     * 遍历所有Sheet的所有单元格，替换 {{key}}、${key}、裸变量名 三种格式
+     * 同时安全处理 STRING / FORMULA / BLANK 等各类单元格类型
+     */
+    private byte[] replaceXlsxPlaceholders(byte[] fileBytes, Map<String, String> placeholders) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook(new ByteArrayInputStream(fileBytes))) {
+            for (int si = 0; si < workbook.getNumberOfSheets(); si++) {
+                Sheet sheet = workbook.getSheetAt(si);
+                for (Row row : sheet) {
+                    for (Cell cell : row) {
+                        // 获取单元格实际类型（FORMULA时取缓存值类型）
+                        CellType effectiveType = cell.getCellType();
+                        if (effectiveType == CellType.FORMULA) {
+                            effectiveType = cell.getCachedFormulaResultType();
+                        }
+                        // 只处理字符串类型单元格
+                        if (effectiveType != CellType.STRING) continue;
+
+                        String original;
+                        try {
+                            original = cell.getStringCellValue();
+                        } catch (Exception e) {
+                            continue; // 获取值异常时跳过
+                        }
+                        if (original == null || original.isEmpty()) continue;
+
+                        String replaced = original;
+                        for (Map.Entry<String, String> entry : placeholders.entrySet()) {
+                            String key = entry.getKey();
+                            String value = entry.getValue() != null ? entry.getValue() : "";
+                            // 支持三种格式：{{key}}、${key}、裸变量名
+                            replaced = replaced.replace("{{" + key + "}}", value);
+                            replaced = replaced.replace("${" + key + "}", value);
+                            replaced = replaced.replace("{{ " + key + " }}", value);
+                            replaced = replaced.replace(key, value);
+                        }
+                        if (!replaced.equals(original)) {
+                            // 对FORMULA单元格，清除公式后写入字符串
+                            if (cell.getCellType() == CellType.FORMULA) {
+                                cell.setCellType(CellType.STRING);
+                            }
+                            cell.setCellValue(replaced);
+                        }
+                    }
+                }
+            }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            workbook.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    /**
      * 替换段落中的占位符
      * 注意：Word可能将一个{{xmbh}}拆分到多个Run中，需要合并后再替换
+     * 支持三种格式：{{xmbh}}、${xmbh}、裸占位符xmbh（模板直接使用变量名）
      */
     private void replaceParagraphPlaceholders(XWPFParagraph paragraph, Map<String, String> placeholders) {
         List<XWPFRun> runs = paragraph.getRuns();
         if (runs == null || runs.isEmpty()) return;
 
-        // 将所有Run文本合并，检查是否含有占位符
+        // 将所有Run文本合并，用于检测是否含有跨Run的占位符
         StringBuilder fullText = new StringBuilder();
         for (XWPFRun run : runs) {
             String text = run.getText(0);
@@ -285,26 +413,82 @@ public class ArchiveServiceImpl implements ArchiveService {
         }
 
         String combined = fullText.toString();
+        if (combined.isEmpty()) return;
+
+        // 检查是否含有任何占位符（{{...}}、${...} 或 裸变量名）
         boolean hasPlaceholder = combined.contains("{{") || combined.contains("${");
+        if (!hasPlaceholder) {
+            for (String key : placeholders.keySet()) {
+                if (combined.contains(key)) {
+                    hasPlaceholder = true;
+                    break;
+                }
+            }
+        }
         if (!hasPlaceholder) return;
 
-        // 执行替换
+        // 优先策略：逐个Run独立替换（保留每个Run的格式，包括下划线）
+        boolean anyRunReplaced = false;
+        for (XWPFRun run : runs) {
+            String t = run.getText(0);
+            if (t == null || t.isEmpty()) continue;
+            String r = t;
+            for (Map.Entry<String, String> entry : placeholders.entrySet()) {
+                String key = entry.getKey();
+                String value = entry.getValue() != null ? entry.getValue() : "";
+                r = r.replace("{{" + key + "}}", value);
+                r = r.replace("${" + key + "}", value);
+                r = r.replace("{{ " + key + " }}", value);
+                r = r.replace(key, value);
+            }
+            if (!r.equals(t)) {
+                run.setText(r, 0);
+                anyRunReplaced = true;
+            }
+        }
+
+        if (anyRunReplaced) return; // 已完成逐Run替换，无需跨Run合并
+
+        // 回退策略：占位符跨多个Run时，合并所有Run的文本执行替换，
+        // 然后将替换结果写入包含最多占位符字符的Run（保留该Run的格式），其余Run置空
         String replaced = combined;
         for (Map.Entry<String, String> entry : placeholders.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue() != null ? entry.getValue() : "";
             replaced = replaced.replace("{{" + key + "}}", value);
             replaced = replaced.replace("${" + key + "}", value);
-            // 也尝试带空格的格式
             replaced = replaced.replace("{{ " + key + " }}", value);
+            replaced = replaced.replace(key, value);
         }
 
         if (!replaced.equals(combined)) {
-            // 将替换后的文本写入第一个Run，清空其余Run
-            if (!runs.isEmpty()) {
-                runs.get(0).setText(replaced, 0);
-                for (int i = 1; i < runs.size(); i++) {
-                    runs.get(i).setText("", 0);
+            // 找到最佳目标Run：选择文本最长的Run（通常是主要内容Run）
+            // 若有Run含有下划线格式，优先选择该Run以保留下划线
+            XWPFRun targetRun = runs.get(0);
+            int maxLen = 0;
+            for (XWPFRun run : runs) {
+                String t = run.getText(0);
+                if (t != null && t.length() > maxLen) {
+                    maxLen = t.length();
+                    targetRun = run;
+                }
+            }
+            // 若有Run带有下划线格式，且当前目标Run没有下划线，则切换为带下划线的Run
+            boolean targetHasUnderline = targetRun.getUnderline() != null
+                    && targetRun.getUnderline() != org.apache.poi.xwpf.usermodel.UnderlinePatterns.NONE;
+            if (!targetHasUnderline) {
+                for (XWPFRun run : runs) {
+                    if (run.getUnderline() != null
+                            && run.getUnderline() != org.apache.poi.xwpf.usermodel.UnderlinePatterns.NONE) {
+                        targetRun = run;
+                        break;
+                    }
+                }
+            }
+            targetRun.setText(replaced, 0);
+            for (XWPFRun run : runs) {
+                if (run != targetRun) {
+                    run.setText("", 0);
                 }
             }
         }
@@ -312,11 +496,202 @@ public class ArchiveServiceImpl implements ArchiveService {
 
     /**
      * 生成测评工具清单文档
+     * 核心逻辑：
+     * 1. 加载 tool_list 模板文件（Word格式）
+     * 2. 第一个表格为设备清单：
+     *    - 使用人为 "/" 的行（硬件扫描设备）：始终保留
+     *    - 使用人为人名的行：与项目组成员姓名模糊匹配（去除空格标点后），不匹配则删除
+     *    - 删除后重新编号序号列
+     * 3. 第二个表格（渗透软件清单）：保持不变
+     * 4. 替换标题中的 xmbh 占位符
      */
     private byte[] generateToolListDoc(TProject project, List<Long> selectedStaffIds,
                                         List<Long> selectedDeviceIds) throws Exception {
+        // 获取 tool_list 模板文件
+        TArchiveTemplate toolListTemplate = null;
+        List<TArchiveTemplate> allTemplates = templateMapper.findAllActive();
+        for (TArchiveTemplate t : allTemplates) {
+            if ("tool_list".equals(t.getTemplateCode())) {
+                toolListTemplate = t;
+                break;
+            }
+        }
+
+        if (toolListTemplate == null) {
+            log.warn("未找到 tool_list 模板，使用动态生成方式");
+            return generateToolListDocFallback(project, selectedStaffIds, selectedDeviceIds);
+        }
+
+        Path templatePath = Paths.get(toolListTemplate.getFilePath());
+        if (!Files.exists(templatePath)) {
+            log.warn("tool_list 模板文件不存在: {}，使用动态生成方式", templatePath);
+            return generateToolListDocFallback(project, selectedStaffIds, selectedDeviceIds);
+        }
+
+        // 加载项目成员姓名（用于匹配）
+        Set<String> memberNormalizedNames = new HashSet<>();
+        List<TProjectMember> members = memberMapper.findByProjectId(project.getId());
+        for (TProjectMember m : members) {
+            if (m.getMemberId() != null) {
+                TStaff staff = staffMapper.selectById(m.getMemberId());
+                if (staff != null) {
+                    String name = decrypt(staff.getRealName());
+                    if (!name.isEmpty()) {
+                        memberNormalizedNames.add(normalizeName(name));
+                    }
+                }
+            }
+        }
+
+        try (InputStream is = Files.newInputStream(templatePath);
+             XWPFDocument doc = new XWPFDocument(is)) {
+
+            // 替换段落中的 xmbh 占位符（标题等）
+            for (XWPFParagraph para : doc.getParagraphs()) {
+                String text = para.getText();
+                if (text.contains("xmbh")) {
+                    for (XWPFRun run : para.getRuns()) {
+                        String rt = run.getText(0);
+                        if (rt != null && rt.contains("xmbh")) {
+                            run.setText(rt.replace("xmbh", project.getProjectNo()), 0);
+                        }
+                    }
+                }
+            }
+
+            List<XWPFTable> tables = doc.getTables();
+            if (!tables.isEmpty()) {
+                // 第一个表格：设备清单，过滤行
+                XWPFTable deviceTable = tables.get(0);
+                List<XWPFTableRow> rows = deviceTable.getRows();
+
+                // 找到表头行（含"使用人"或"序号"的行）
+                int headerRowCount = 0;
+                for (int i = 0; i < rows.size(); i++) {
+                    String rowText = getRowText(rows.get(i));
+                    if (rowText.contains("使用人") || rowText.contains("序号")) {
+                        headerRowCount = i + 1;
+                    } else {
+                        break;
+                    }
+                }
+
+                // 找到"使用人"列的索引（从表头行中查找）
+                int userColIndex = 4; // 默认第5列（0-indexed=4）
+                if (headerRowCount > 0) {
+                    XWPFTableRow headerRow = rows.get(headerRowCount - 1);
+                    for (int ci = 0; ci < headerRow.getTableCells().size(); ci++) {
+                        String cellText = getCellText(headerRow.getCell(ci));
+                        if (cellText.contains("使用人")) {
+                            userColIndex = ci;
+                            break;
+                        }
+                    }
+                }
+
+                // 找到"序号"列的索引
+                int seqColIndex = 0;
+
+                // 确定要删除的行索引（倒序删除）
+                List<Integer> rowsToDelete = new ArrayList<>();
+                for (int i = headerRowCount; i < rows.size(); i++) {
+                    XWPFTableRow row = rows.get(i);
+                    if (row.getTableCells().size() <= userColIndex) continue;
+                    String userCell = getCellText(row.getCell(userColIndex));
+                    String normalized = normalizeName(userCell);
+                    // "/" 行始终保留（硬件扫描设备）
+                    if ("/".equals(userCell.trim()) || normalized.isEmpty()) continue;
+                    // 空使用人也保留
+                    if (userCell.trim().isEmpty()) continue;
+                    // 检查是否匹配项目成员
+                    boolean matched = false;
+                    for (String memberNorm : memberNormalizedNames) {
+                        if (!memberNorm.isEmpty() && (normalized.contains(memberNorm) || memberNorm.contains(normalized))) {
+                            matched = true;
+                            break;
+                        }
+                    }
+                    if (!matched) {
+                        rowsToDelete.add(i);
+                    }
+                }
+
+                // 倒序删除不匹配的行（避免索引偏移）
+                for (int i = rowsToDelete.size() - 1; i >= 0; i--) {
+                    int rowIdx = rowsToDelete.get(i);
+                    deviceTable.removeRow(rowIdx);
+                }
+
+                // 重新编号序号列
+                rows = deviceTable.getRows();
+                int seq = 1;
+                for (int i = headerRowCount; i < rows.size(); i++) {
+                    XWPFTableRow row = rows.get(i);
+                    if (row.getTableCells().size() > seqColIndex) {
+                        XWPFTableCell seqCell = row.getCell(seqColIndex);
+                        // 更新序号：设置首个段落首个run的文字
+                        if (!seqCell.getParagraphs().isEmpty()) {
+                            XWPFParagraph seqPara = seqCell.getParagraphs().get(0);
+                            if (seqPara.getRuns().isEmpty()) {
+                                seqPara.createRun().setText(String.valueOf(seq));
+                            } else {
+                                seqPara.getRuns().get(0).setText(String.valueOf(seq), 0);
+                                // 清除多余的 runs
+                                for (int ri = seqPara.getRuns().size() - 1; ri > 0; ri--) {
+                                    seqPara.getRuns().get(ri).setText("", 0);
+                                }
+                            }
+                        }
+                        seq++;
+                    }
+                }
+            }
+
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            doc.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    /**
+     * 获取表格行所有单元格文本的拼接
+     */
+    private String getRowText(XWPFTableRow row) {
+        StringBuilder sb = new StringBuilder();
+        for (XWPFTableCell cell : row.getTableCells()) {
+            sb.append(getCellText(cell));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 获取单元格所有段落文本的拼接
+     */
+    private String getCellText(XWPFTableCell cell) {
+        StringBuilder sb = new StringBuilder();
+        for (XWPFParagraph p : cell.getParagraphs()) {
+            for (XWPFRun r : p.getRuns()) {
+                String t = r.getText(0);
+                if (t != null) sb.append(t);
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 标准化姓名：去除空格、标点、格式字符后，用于模糊匹配
+     */
+    private String normalizeName(String name) {
+        if (name == null) return "";
+        return name.replaceAll("[\\s\\p{P}\\p{Z}\\u00B7]", "").toLowerCase();
+    }
+
+    /**
+     * 当模板文件不存在时的回退逻辑（动态生成）
+     */
+    private byte[] generateToolListDocFallback(TProject project, List<Long> selectedStaffIds,
+                                                List<Long> selectedDeviceIds) throws Exception {
         try (XWPFDocument doc = new XWPFDocument()) {
-            // 标题
             XWPFParagraph title = doc.createParagraph();
             title.setAlignment(ParagraphAlignment.CENTER);
             XWPFRun titleRun = title.createRun();
@@ -324,14 +699,12 @@ public class ArchiveServiceImpl implements ArchiveService {
             titleRun.setBold(true);
             titleRun.setFontSize(14);
 
-            doc.createParagraph(); // 空行
+            doc.createParagraph();
 
-            // 表1：硬件测评设备
             XWPFParagraph p1 = doc.createParagraph();
             p1.createRun().setText("一、测评设备清单");
 
             XWPFTable deviceTable = doc.createTable();
-            // 表头
             XWPFTableRow headerRow = deviceTable.getRow(0);
             setCell(headerRow, 0, "序号");
             headerRow.addNewTableCell(); setCell(headerRow, 1, "设备编号");
@@ -339,24 +712,7 @@ public class ArchiveServiceImpl implements ArchiveService {
             headerRow.addNewTableCell(); setCell(headerRow, 3, "型号");
             headerRow.addNewTableCell(); setCell(headerRow, 4, "使用人");
 
-            // 添加选定设备行（按选择的人员过滤）
-            List<TEvalDevice> devices;
-            if (selectedStaffIds != null && !selectedStaffIds.isEmpty()) {
-                devices = new ArrayList<>();
-                for (Long staffId : selectedStaffIds) {
-                    devices.addAll(deviceMapper.findByStaffId(staffId));
-                }
-                // 也添加无固定使用人的扫描设备（如果有选中的设备ID）
-                if (selectedDeviceIds != null) {
-                    for (Long deviceId : selectedDeviceIds) {
-                        TEvalDevice d = deviceMapper.selectById(deviceId);
-                        if (d != null) devices.add(d);
-                    }
-                }
-            } else {
-                devices = deviceMapper.findAllWithStaff();
-            }
-
+            List<TEvalDevice> devices = deviceMapper.findAllWithStaff();
             int seq = 1;
             for (TEvalDevice d : devices) {
                 XWPFTableRow row = deviceTable.createRow();
@@ -367,9 +723,7 @@ public class ArchiveServiceImpl implements ArchiveService {
                 setCell(row, 4, d.getOwnerStaffName() != null ? decrypt(d.getOwnerStaffName()) : "/");
             }
 
-            doc.createParagraph(); // 空行
-
-            // 表2：渗透软件工具（全部导出）
+            doc.createParagraph();
             XWPFParagraph p2 = doc.createParagraph();
             p2.createRun().setText("二、渗透软件工具清单");
 
@@ -417,7 +771,7 @@ public class ArchiveServiceImpl implements ArchiveService {
         map.put("khdz", decrypt(project.getCustomerAddress()));
         map.put("lxr", decrypt(project.getCustomerContact()));
         map.put("lxdh", decrypt(project.getCustomerPhone()));
-        map.put("rwbh", project.getTaskNo());
+        map.put("rwbh", project.getProjectNo()); // taskNo已删除，使用项目编号替代
         map.put("xtmc", project.getSystemNameMerged());
         map.put("xtsl", systems != null ? String.valueOf(systems.size()) : "0");
 
@@ -506,11 +860,89 @@ public class ArchiveServiceImpl implements ArchiveService {
             map.put("xmdjba", xmdjba.toString());
         }
 
+        // 人员角色占位符（从 t_project_member 中按 role_type 提取）
+        if (project.getId() != null) {
+            // 项目组成员（所有角色，去重）
+            map.put("xmzcy", getAllMemberNames(project.getId()));
+            // 项目负责人
+            map.put("xmfzr", getMemberNamesByRole(project.getId(), "project_leader"));
+            // 项目经理
+            map.put("xmjl", getMemberNamesByRole(project.getId(), "project_manager"));
+            // 调研表编制人
+            map.put("dybbz", getMemberNamesByRole(project.getId(), "survey_editor"));
+            // 测评方案编制人
+            map.put("cpfabz", getMemberNamesByRole(project.getId(), "plan_editor"));
+            // 测评报告编制人
+            map.put("cpbgbz", getMemberNamesByRole(project.getId(), "report_editor"));
+            // 网络及安全设备测评人员
+            map.put("wlry", getMemberNamesByRole(project.getId(), "network_evaluator"));
+            // 主机应用测评人员
+            map.put("zjry", getMemberNamesByRole(project.getId(), "host_evaluator"));
+            // 物理管理测评人员
+            map.put("wlglry", getMemberNamesByRole(project.getId(), "physical_evaluator"));
+            // 工具扫描人员
+            map.put("gjsmry", getMemberNamesByRole(project.getId(), "tool_scanner"));
+            // 渗透测试人员
+            map.put("stcsry", getMemberNamesByRole(project.getId(), "pentest_member"));
+            // 注册测评师（全部注册测评师）
+            map.put("zcpss", getMemberNamesByRole(project.getId(), "registered_evaluator"));
+            // 实际测评人员（actual_member）
+            map.put("sjcpry", getMemberNamesByRole(project.getId(), "actual_member"));
+        }
+
         return map;
+    }
+
+    /**
+     * 从项目成员中按角色获取姓名列表（解密），逗号分隔
+     */
+    private String getMemberNamesByRole(Long projectId, String roleType) {
+        List<TProjectMember> members = memberMapper.findByProjectId(projectId);
+        List<String> names = new ArrayList<>();
+        for (TProjectMember m : members) {
+            if (roleType.equals(m.getRoleType()) && m.getMemberId() != null) {
+                TStaff staff = staffMapper.selectById(m.getMemberId());
+                if (staff != null) {
+                    String name = decrypt(staff.getRealName());
+                    if (!name.isEmpty()) names.add(name);
+                }
+            }
+        }
+        return String.join("、", names);
+    }
+
+    /**
+     * 从项目成员中获取所有成员姓名（去重），逗号分隔
+     */
+    private String getAllMemberNames(Long projectId) {
+        List<TProjectMember> members = memberMapper.findByProjectId(projectId);
+        Set<Long> seen = new LinkedHashSet<>();
+        List<String> names = new ArrayList<>();
+        for (TProjectMember m : members) {
+            if (m.getMemberId() != null && !seen.contains(m.getMemberId())) {
+                seen.add(m.getMemberId());
+                TStaff staff = staffMapper.selectById(m.getMemberId());
+                if (staff != null) {
+                    String name = decrypt(staff.getRealName());
+                    if (!name.isEmpty()) names.add(name);
+                }
+            }
+        }
+        return String.join("、", names);
     }
 
     private String decrypt(String value) {
         if (value == null || value.isEmpty()) return "";
         try { return sm4Util.decrypt(value); } catch (Exception e) { return value; }
+    }
+
+    private int parseVersionNum(String version) {
+        if (version == null || version.isEmpty()) return 1;
+        try {
+            String num = version.replaceAll("[^0-9]", "");
+            return num.isEmpty() ? 1 : Integer.parseInt(num);
+        } catch (Exception e) {
+            return 1;
+        }
     }
 }

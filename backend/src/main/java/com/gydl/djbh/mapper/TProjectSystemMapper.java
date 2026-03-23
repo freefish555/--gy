@@ -12,7 +12,7 @@ import java.util.List;
 @Mapper
 public interface TProjectSystemMapper extends BaseMapper<TProjectSystem> {
 
-    @Select("SELECT * FROM t_project_system WHERE project_id = #{projectId} ORDER BY sys_no")
+    @Select("SELECT * FROM t_project_system WHERE project_id = #{projectId} ORDER BY sys_seq")
     List<TProjectSystem> findByProjectId(@Param("projectId") Long projectId);
 
     @Delete("DELETE FROM t_project_system WHERE project_id = #{projectId}")

@@ -26,16 +26,19 @@ public class ProjectSaveReq {
     private String customerContact;
     private String customerPhone;
 
-    @NotBlank(message = "系统名称合并不能为空")
+    /** 系统名称合并（前端自动生成或手动编辑） */
     private String systemNameMerged;
 
-    @NotBlank(message = "任务编号不能为空")
-    private String taskNo;
+    /** 二级系统数量（前端自动统计或手动编辑） */
+    private Integer sysCountL2;
+
+    /** 三级系统数量（前端自动统计或手动编辑） */
+    private Integer sysCountL3;
 
     private Long projectTypeId;
     private Long industryId;
-    private Integer projectStatus;
     private Integer paperArchived;
+    private Integer electronicArchived;
     private String contractDate;
     private String contractAmount;
     private String yearBelong;
@@ -75,14 +78,19 @@ public class ProjectSaveReq {
      */
     @Data
     public static class ProjectSystemItem {
-        @NotNull(message = "系统序号不能为空")
         private Integer sysSeq;
         @NotBlank(message = "系统名称不能为空")
         private String sysName;
-        @NotNull(message = "系统等级不能为空")
         private Integer sysLevel;
-        @NotBlank(message = "测评指标不能为空")
         private String evalIndex;
         private String recordNo;
+        /** 编写人ID */
+        private Long writerId;
+        /** 审核人员ID */
+        private Long reviewerId;
+        /** 报告结论 */
+        private String reportConclusion;
+        /** 质量审核得分 */
+        private Integer qualityScore;
     }
 }

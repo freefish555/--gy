@@ -48,12 +48,8 @@
         <el-table :data="pentestList" border v-loading="pentestLoading" style="margin-top:12px">
           <el-table-column label="工具名称" prop="toolName" min-width="160" />
           <el-table-column label="版本" prop="toolVersion" width="120" />
-          <el-table-column label="用途" prop="toolPurpose" min-width="200" />
-          <el-table-column label="官网/来源" prop="toolSource" min-width="200">
-            <template #default="{ row }">
-              <a v-if="row.toolSource" :href="row.toolSource" target="_blank" class="link">{{ row.toolSource }}</a>
-            </template>
-          </el-table-column>
+          <el-table-column label="工具编号" prop="toolNo" width="120" />
+          <el-table-column label="工具描述" prop="toolDesc" min-width="200" show-overflow-tooltip />
           <el-table-column label="状态" width="80" align="center">
             <template #default="{ row }">
               <el-tag :type="row.status ? 'success' : 'danger'" size="small">{{ row.status ? '正常' : '停用' }}</el-tag>
@@ -128,24 +124,33 @@
       <el-form :model="pentestForm" :rules="pentestRules" ref="pentestFormRef" label-width="100px">
         <el-row :gutter="16">
           <el-col :span="12">
+            <el-form-item label="工具编号">
+              <el-input v-model="pentestForm.toolNo" placeholder="如: PT-001" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="工具名称" prop="toolName">
               <el-input v-model="pentestForm.toolName" />
             </el-form-item>
           </el-col>
+        </el-row>
+        <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="版本">
               <el-input v-model="pentestForm.toolVersion" placeholder="如: 2024.1" />
             </el-form-item>
           </el-col>
+          <el-col :span="12">
+            <el-form-item label="状态">
+              <el-select v-model="pentestForm.status" style="width:100%">
+                <el-option label="正常" :value="1" />
+                <el-option label="停用" :value="0" />
+              </el-select>
+            </el-form-item>
+          </el-col>
         </el-row>
-        <el-form-item label="用途说明">
-          <el-input v-model="pentestForm.toolPurpose" type="textarea" :rows="2" />
-        </el-form-item>
-        <el-form-item label="官网/来源">
-          <el-input v-model="pentestForm.toolSource" placeholder="https://..." />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="pentestForm.remark" type="textarea" :rows="2" />
+        <el-form-item label="工具描述">
+          <el-input v-model="pentestForm.toolDesc" type="textarea" :rows="3" placeholder="工具用途和描述" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -185,7 +190,7 @@ const pentestEditId = ref<number | null>(null)
 const savingPentest = ref(false)
 const pentestFormRef = ref()
 const pentestQuery = reactive({ pageNum: 1, pageSize: 20, keyword: '' })
-const pentestForm = reactive({ toolName: '', toolVersion: '', toolPurpose: '', toolSource: '', remark: '' })
+const pentestForm = reactive({ toolNo: '', toolName: '', toolVersion: '', toolDesc: '', status: 1 })
 const pentestRules = { toolName: [{ required: true, message: '请输入工具名称' }] }
 
 const staffOptions = ref<any[]>([])
@@ -198,13 +203,13 @@ onMounted(async () => {
 
 async function loadDevices() {
   deviceLoading.value = true
-  try { const r: any = await toolApi.deviceList(deviceQuery); deviceList.value = r.data?.records || []; deviceTotal.value = r.data?.total || 0 }
+  try { const r: any = await toolApi.deviceList(deviceQuery); deviceList.value = Array.isArray(r.data) ? r.data : (r.data?.records || []); deviceTotal.value = Array.isArray(r.data) ? r.data.length : (r.data?.total || 0) }
   finally { deviceLoading.value = false }
 }
 
 async function loadPentests() {
   pentestLoading.value = true
-  try { const r: any = await toolApi.pentestList(pentestQuery); pentestList.value = r.data?.records || []; pentestTotal.value = r.data?.total || 0 }
+  try { const r: any = await toolApi.pentestList(pentestQuery); pentestList.value = Array.isArray(r.data) ? r.data : (r.data?.records || []); pentestTotal.value = Array.isArray(r.data) ? r.data.length : (r.data?.total || 0) }
   finally { pentestLoading.value = false }
 }
 
@@ -234,7 +239,7 @@ async function deleteDevice(row: any) {
 
 function openPentestDialog(row?: any) {
   pentestEditId.value = row?.id || null
-  Object.assign(pentestForm, row || { toolName: '', toolVersion: '', toolPurpose: '', toolSource: '', remark: '' })
+  Object.assign(pentestForm, row || { toolNo: '', toolName: '', toolVersion: '', toolDesc: '', status: 1 })
   pentestDialog.value = true
 }
 

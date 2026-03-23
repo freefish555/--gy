@@ -122,8 +122,7 @@ async function searchProjects() {
   try {
     const res: any = await projectApi.list({
       pageNum: 1, pageSize: 20,
-      projectName: queryForm.value.keyword,
-      projectNo: queryForm.value.keyword,
+      keyword: queryForm.value.keyword,
       yearBelong: queryForm.value.yearBelong,
     })
     projectList.value = res.data?.records || []
@@ -149,12 +148,13 @@ async function generateFiles() {
   try {
     const res: any = await archiveApi.generate(
       selectedProject.value.id,
-      selectedTemplates.value.map(t => t.id)
+      selectedTemplates.value.map((t: any) => t.id)
     )
     generateSuccess.value = true
     generatedFiles.value = res.data?.files || []
   } catch (e: any) {
     generateError.value = e.message || '未知错误'
+    step.value = 2
   }
 }
 
@@ -162,14 +162,19 @@ async function downloadArchive() {
   if (!selectedProject.value) return
   try {
     const res: any = await archiveApi.download(selectedProject.value.id)
-    const url = URL.createObjectURL(new Blob([res]))
+    // res is AxiosResponse when responseType is 'blob'
+    const blobData = res?.data || res
+    const blob = blobData instanceof Blob ? blobData : new Blob([blobData], { type: 'application/zip' })
+    const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
     a.download = `${selectedProject.value.projectNo}-归档材料.zip`
+    document.body.appendChild(a)
     a.click()
+    document.body.removeChild(a)
     URL.revokeObjectURL(url)
   } catch (e: any) {
-    ElMessage.error('下载失败: ' + e.message)
+    ElMessage.error('下载失败: ' + (e.message || '请先生成归档材料'))
   }
 }
 

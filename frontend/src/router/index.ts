@@ -94,6 +94,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/system/TemplateManage.vue'),
         meta: { title: '归档模板管理', icon: 'Files', module: 'system', perm: 'archive:template' }
       },
+      {
+        path: '/system/role',
+        name: 'RoleManage',
+        component: () => import('@/views/system/RoleManage.vue'),
+        meta: { title: '角色权限管理', icon: 'Key', module: 'system', perm: 'system:role' }
+      },
       // ===== 日志管理 =====
       {
         path: '/log/login',

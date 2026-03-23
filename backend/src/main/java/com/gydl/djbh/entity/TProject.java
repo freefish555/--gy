@@ -33,10 +33,11 @@ public class TProject {
     /** SM4加密 */
     private String customerPhone;
 
-    /** SM4加密 */
     private String systemNameMerged;
 
-    private String taskNo;
+    private Integer sysCountL2;
+
+    private Integer sysCountL3;
 
     private Long projectTypeId;
 
@@ -51,11 +52,11 @@ public class TProject {
     /** SM4加密 */
     private String contractAmount;
 
-    /** 0待启动/1已分配/2进行中/3已完成/4电子归档 */
-    private Integer projectStatus;
-
     /** 纸质归档: 0否/1是 */
     private Integer paperArchived;
+
+    /** 电子归档: 0否/1是 */
+    private Integer electronicArchived;
 
     private String phasePrepare;
 

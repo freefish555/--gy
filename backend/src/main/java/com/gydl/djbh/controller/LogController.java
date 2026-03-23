@@ -4,11 +4,13 @@ import com.gydl.djbh.dto.req.LogQueryReq;
 import com.gydl.djbh.dto.resp.PageResult;
 import com.gydl.djbh.dto.resp.Result;
 import com.gydl.djbh.service.LogService;
+import com.gydl.djbh.service.SysConfigService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -20,6 +22,7 @@ import java.util.Map;
 public class LogController {
 
     private final LogService logService;
+    private final SysConfigService sysConfigService;
 
     /** 登录日志分页 */
     @GetMapping("/login/page")
@@ -47,5 +50,30 @@ public class LogController {
     @PreAuthorize("hasAuthority('log:operation:view')")
     public void exportOperationLog(LogQueryReq req, HttpServletResponse response) throws Exception {
         logService.exportOperationLog(req, response);
+    }
+
+    /** 获取日志服务器配置 */
+    @GetMapping("/server/config")
+    @PreAuthorize("hasAuthority('log:server:config')")
+    public Result<Map<String, Object>> getServerConfig() {
+        Map<String, Object> config = new HashMap<>();
+        config.put("enabled", Boolean.parseBoolean(sysConfigService.getConfig("LOG_SERVER_ENABLED", "false")));
+        config.put("host", sysConfigService.getConfig("LOG_SERVER_HOST", ""));
+        config.put("port", Integer.parseInt(sysConfigService.getConfig("LOG_SERVER_PORT", "514")));
+        config.put("protocol", sysConfigService.getConfig("LOG_SERVER_PROTOCOL", "UDP"));
+        config.put("format", sysConfigService.getConfig("LOG_SERVER_FORMAT", "syslog"));
+        return Result.ok(config);
+    }
+
+    /** 保存日志服务器配置 */
+    @PostMapping("/server/config")
+    @PreAuthorize("hasAuthority('log:server:config')")
+    public Result<?> saveServerConfig(@RequestBody Map<String, Object> body) {
+        sysConfigService.setConfig("LOG_SERVER_ENABLED", String.valueOf(body.getOrDefault("enabled", false)));
+        sysConfigService.setConfig("LOG_SERVER_HOST", String.valueOf(body.getOrDefault("host", "")));
+        sysConfigService.setConfig("LOG_SERVER_PORT", String.valueOf(body.getOrDefault("port", 514)));
+        sysConfigService.setConfig("LOG_SERVER_PROTOCOL", String.valueOf(body.getOrDefault("protocol", "UDP")));
+        sysConfigService.setConfig("LOG_SERVER_FORMAT", String.valueOf(body.getOrDefault("format", "syslog")));
+        return Result.ok("保存成功");
     }
 }
