@@ -22,7 +22,10 @@ public interface TStaffMapper extends BaseMapper<TStaff> {
     @Select("<script>" +
             "SELECT s.* FROM t_staff s WHERE 1=1 " +
             "<if test='keyword != null and keyword != \"\"'>" +
-            "AND (s.real_name LIKE CONCAT('%',#{keyword},'%') OR s.staff_no LIKE CONCAT('%',#{keyword},'%') OR s.department LIKE CONCAT('%',#{keyword},'%')) " +
+            "AND (s.staff_no LIKE CONCAT('%',#{keyword},'%') OR s.department LIKE CONCAT('%',#{keyword},'%')) " +
+            "</if>" +
+            "<if test='department != null and department != \"\"'>" +
+            "AND s.department LIKE CONCAT('%',#{department},'%') " +
             "</if>" +
             "<if test='roleLevel != null and roleLevel != \"\"'>" +
             "AND s.role_level = #{roleLevel} " +
@@ -40,7 +43,10 @@ public interface TStaffMapper extends BaseMapper<TStaff> {
     @Select("<script>" +
             "SELECT COUNT(*) FROM t_staff s WHERE 1=1 " +
             "<if test='keyword != null and keyword != \"\"'>" +
-            "AND (s.real_name LIKE CONCAT('%',#{keyword},'%') OR s.staff_no LIKE CONCAT('%',#{keyword},'%') OR s.department LIKE CONCAT('%',#{keyword},'%')) " +
+            "AND (s.staff_no LIKE CONCAT('%',#{keyword},'%') OR s.department LIKE CONCAT('%',#{keyword},'%')) " +
+            "</if>" +
+            "<if test='department != null and department != \"\"'>" +
+            "AND s.department LIKE CONCAT('%',#{department},'%') " +
             "</if>" +
             "<if test='roleLevel != null and roleLevel != \"\"'>" +
             "AND s.role_level = #{roleLevel} " +
@@ -51,4 +57,21 @@ public interface TStaffMapper extends BaseMapper<TStaff> {
             "</script>")
     long countPage(@Param("keyword") String keyword, @Param("roleLevel") String roleLevel,
                    @Param("status") Integer status);
+
+    @Select("<script>" +
+            "SELECT s.* FROM t_staff s WHERE 1=1 " +
+            "<if test='department != null and department != \"\"'>" +
+            "AND s.department LIKE CONCAT('%',#{department},'%') " +
+            "</if>" +
+            "<if test='roleLevel != null and roleLevel != \"\"'>" +
+            "AND s.role_level = #{roleLevel} " +
+            "</if>" +
+            "<if test='status != null'>" +
+            "AND s.status = #{status} " +
+            "</if>" +
+            "ORDER BY s.staff_no" +
+            "</script>")
+    List<TStaff> findAllForFilter(@Param("department") String department,
+                                   @Param("roleLevel") String roleLevel,
+                                   @Param("status") Integer status);
 }

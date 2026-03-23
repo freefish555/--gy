@@ -10,6 +10,7 @@ export interface UserInfo {
   roleName: string
   permissions: string[]
   firstLogin: boolean
+  staffId?: number | null
 }
 
 export const useAuthStore = defineStore('auth', () => {
@@ -66,7 +67,8 @@ export const useAuthStore = defineStore('auth', () => {
       roleCode: data.roleCode,
       roleName: data.roleName,
       permissions: data.permissions,
-      firstLogin: data.firstLogin
+      firstLogin: data.firstLogin,
+      staffId: data.staffId ?? null
     })
     return { requireTotp: false, firstLogin: data.firstLogin }
   }
@@ -83,7 +85,8 @@ export const useAuthStore = defineStore('auth', () => {
       roleCode: data.roleCode,
       roleName: data.roleName,
       permissions: data.permissions,
-      firstLogin: data.firstLogin
+      firstLogin: data.firstLogin,
+      staffId: data.staffId ?? null
     })
     return data
   }

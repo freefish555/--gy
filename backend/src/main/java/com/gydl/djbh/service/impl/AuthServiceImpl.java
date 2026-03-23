@@ -183,6 +183,7 @@ public class AuthServiceImpl implements AuthService {
                 .roleCode(user.getRoleCode())
                 .roleName(user.getRoleName())
                 .permissions(permissions)
+                .staffId(user.getStaffId())
                 .requireTotp(false)
                 .firstLogin(user.getFirstLogin() == 1)
                 .expiresIn(28800L)

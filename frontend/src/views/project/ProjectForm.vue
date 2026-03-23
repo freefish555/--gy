@@ -319,14 +319,14 @@
               <el-col :span="12">
                 <el-form-item label="登记测评师">
                   <el-select v-model="form.registeredEvaluatorIds" multiple filterable placeholder="可多选" style="width:100%">
-                    <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="实际测评人员">
                   <el-select v-model="form.actualMemberIds" multiple filterable placeholder="可多选" style="width:100%">
-                    <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -335,14 +335,14 @@
               <el-col :span="12">
                 <el-form-item label="调研表编制人">
                   <el-select v-model="form.surveyEditorIds" multiple filterable placeholder="可多选" style="width:100%">
-                    <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="方案编制人">
                   <el-select v-model="form.planEditorIds" multiple filterable placeholder="可多选" style="width:100%">
-                    <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -351,14 +351,14 @@
               <el-col :span="12">
                 <el-form-item label="报告编制人">
                   <el-select v-model="form.reportEditorIds" multiple filterable placeholder="可多选" style="width:100%">
-                    <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="网络测评人员">
                   <el-select v-model="form.networkEvaluatorIds" multiple filterable placeholder="可多选" style="width:100%">
-                    <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -367,14 +367,14 @@
               <el-col :span="12">
                 <el-form-item label="主机测评人员">
                   <el-select v-model="form.hostEvaluatorIds" multiple filterable placeholder="可多选" style="width:100%">
-                    <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="物理测评人员">
                   <el-select v-model="form.physicalEvaluatorIds" multiple filterable placeholder="可多选" style="width:100%">
-                    <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -383,14 +383,14 @@
               <el-col :span="12">
                 <el-form-item label="工具扫描人员">
                   <el-select v-model="form.toolScannerIds" multiple filterable placeholder="可多选" style="width:100%">
-                    <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
                 <el-form-item label="渗透测试人员">
                   <el-select v-model="form.pentestMemberIds" multiple filterable placeholder="可多选" style="width:100%">
-                    <el-option v-for="s in evaluatorOptions" :key="s.id" :label="s.realName" :value="s.id" />
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
                   </el-select>
                 </el-form-item>
               </el-col>

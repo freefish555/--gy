@@ -241,3 +241,30 @@ JOIN t_dict_item di ON d.id = di.dict_id
 WHERE d.dict_code = 'PROJECT_REGION' ORDER BY di.sort_order;
 
 SELECT '=== 迁移完成 ===' AS info;
+
+-- ============================================================
+-- 变更5：新增 CUSTOM_ADMIN（自定义管理）角色
+-- 由超级管理员或系统管理员手动赋予权限
+-- ============================================================
+INSERT INTO `t_role` (`role_code`, `role_name`, `role_desc`, `is_system`, `status`)
+SELECT 'CUSTOM_ADMIN', '自定义管理', '由超级管理员或系统管理员手动赋予权限', 0, 1
+WHERE NOT EXISTS (SELECT 1 FROM `t_role` WHERE `role_code` = 'CUSTOM_ADMIN');
+
+SELECT '=== CUSTOM_ADMIN 角色验证 ===' AS info;
+SELECT id, role_code, role_name, role_desc FROM t_role WHERE role_code = 'CUSTOM_ADMIN';
+
+-- ============================================================
+-- 变更6：t_user 新增 staff_id 字段
+-- 用于关联人员清单（t_staff.id），支持测评师编辑权限匹配
+-- ============================================================
+ALTER TABLE `t_user`
+  ADD COLUMN IF NOT EXISTS `staff_id` bigint(20) DEFAULT NULL COMMENT '关联人员清单ID(t_staff.id)，用于测评师编辑权限匹配' AFTER `role_id`;
+
+SELECT '=== t_user staff_id 字段验证 ===' AS info;
+SELECT COLUMN_NAME, COLUMN_TYPE, COLUMN_COMMENT
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = DATABASE()
+  AND TABLE_NAME = 't_user'
+  AND COLUMN_NAME = 'staff_id';
+
+SELECT '=== 完整迁移完成 ===' AS info;

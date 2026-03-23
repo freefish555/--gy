@@ -173,7 +173,15 @@ const regionMap = ref<Record<string, string>>({})
 const canEdit = computed(() => {
   if (authStore.hasPermission('project:update:all')) return true
   if (authStore.hasPermission('project:update:own')) {
-    return detail.value.createdBy === authStore.userInfo?.userId
+    if (detail.value.createdBy === authStore.userInfo?.userId) return true
+  }
+  // 通过 staffId 匹配：登记测评师 或 实际测评人员 可编辑
+  const myStaffId = authStore.userInfo?.staffId
+  if (myStaffId && detail.value.members) {
+    const editableRoles = ['registered_evaluator', 'actual_member']
+    return detail.value.members.some(
+      (m: any) => editableRoles.includes(m.memberRole) && m.staffId === myStaffId
+    )
   }
   return false
 })

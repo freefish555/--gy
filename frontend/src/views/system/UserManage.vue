@@ -12,6 +12,12 @@
         <el-table-column label="用户名" prop="username" width="130" />
         <el-table-column label="真实姓名" prop="realName" width="120" />
         <el-table-column label="角色" prop="roleName" width="130" />
+        <el-table-column label="关联人员" width="120">
+          <template #default="{ row }">
+            <span v-if="row.staffId">{{ staffName(row.staffId) }}</span>
+            <span v-else style="color:#C0C4CC">未关联</span>
+          </template>
+        </el-table-column>
         <el-table-column label="电话" prop="phone" width="140" />
         <el-table-column label="双因子认证" width="110" align="center">
           <template #default="{ row }">
@@ -57,6 +63,12 @@
         <el-form-item label="邮箱">
           <el-input v-model="form.email" />
         </el-form-item>
+        <el-form-item label="关联人员">
+          <el-select v-model="form.staffId" clearable filterable placeholder="关联人员清单（可选）" style="width:100%">
+            <el-option v-for="s in staffOptions" :key="s.id" :label="s.realName" :value="s.id" />
+          </el-select>
+          <div style="color:#909399;font-size:12px;margin-top:4px">关联后，该账号将拥有对应测评师的项目编辑权限</div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible=false">取消</el-button>
@@ -80,8 +92,9 @@ const dialogVisible = ref(false)
 const editId = ref<number | null>(null)
 const formRef = ref()
 const roleOptions = ref<any[]>([])
+const staffOptions = ref<any[]>([])
 
-const form = reactive({ username: '', realName: '', roleId: null as any, password: '', phone: '', email: '' })
+const form = reactive({ username: '', realName: '', roleId: null as any, password: '', phone: '', email: '', staffId: null as any })
 const rules = {
   username: [{ required: true, message: '请输入用户名' }],
   realName: [{ required: true, message: '请输入真实姓名' }],
@@ -92,6 +105,7 @@ const rules = {
 onMounted(async () => {
   loadData()
   try { const r: any = await request.get('/system/role/all'); roleOptions.value = r.data || [] } catch {}
+  try { const r: any = await request.get('/staff/list'); staffOptions.value = r.data || [] } catch {}
 })
 
 async function loadData() {
@@ -100,9 +114,18 @@ async function loadData() {
   finally { loading.value = false }
 }
 
+function staffName(staffId: any): string {
+  const s = staffOptions.value.find((x: any) => x.id === staffId)
+  return s ? s.realName : String(staffId)
+}
+
 function openDialog(row?: any) {
   editId.value = row?.id || null
-  Object.assign(form, row ? { ...row, password: '' } : { username: '', realName: '', roleId: null, password: '', phone: '', email: '' })
+  if (row) {
+    Object.assign(form, { ...row, password: '', staffId: row.staffId ?? null })
+  } else {
+    Object.assign(form, { username: '', realName: '', roleId: null, password: '', phone: '', email: '', staffId: null })
+  }
   dialogVisible.value = true
 }
 

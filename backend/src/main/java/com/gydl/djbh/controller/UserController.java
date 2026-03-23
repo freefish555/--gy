@@ -102,6 +102,7 @@ public class UserController {
             item.put("roleCode", withRole != null ? withRole.getRoleCode() : "");
             item.put("phone", safeDecrypt(u.getPhone()));
             item.put("email", safeDecrypt(u.getEmail()));
+            item.put("staffId", u.getStaffId());
             item.put("totpEnabled", u.getTotpEnabled());
             item.put("status", u.getStatus());
             item.put("lastLoginAt", u.getLastLoginAt());
@@ -148,11 +149,19 @@ public class UserController {
         Long roleId = Long.valueOf(roleIdObj.toString());
         Long currentUserId = SecurityContextUtil.getCurrentUserId();
 
+        // staffId（关联人员清单，可选）
+        Long staffId = null;
+        Object staffIdObj = body.get("staffId");
+        if (staffIdObj != null && !staffIdObj.toString().isEmpty()) {
+            try { staffId = Long.valueOf(staffIdObj.toString()); } catch (Exception ignored) {}
+        }
+
         TUser user = new TUser();
         user.setUsername(username.trim());
         user.setRealName(sm4Util.encrypt(realName.trim()));
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setRoleId(roleId);
+        user.setStaffId(staffId);
         user.setPhone(phone != null && !phone.isEmpty() ? sm4Util.encrypt(phone) : null);
         user.setEmail(email != null && !email.isEmpty() ? sm4Util.encrypt(email) : null);
         user.setStatus(1);
@@ -193,6 +202,15 @@ public class UserController {
         }
         if (email != null) {
             user.setEmail(email.isEmpty() ? null : sm4Util.encrypt(email));
+        }
+        // staffId（关联人员清单，可选，传null表示清除关联）
+        if (body.containsKey("staffId")) {
+            Object staffIdObj = body.get("staffId");
+            if (staffIdObj == null || staffIdObj.toString().isEmpty()) {
+                user.setStaffId(null);
+            } else {
+                try { user.setStaffId(Long.valueOf(staffIdObj.toString())); } catch (Exception ignored) {}
+            }
         }
         user.setUpdatedAt(LocalDateTime.now());
         userMapper.updateById(user);

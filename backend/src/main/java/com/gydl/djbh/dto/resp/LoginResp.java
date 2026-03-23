@@ -17,6 +17,8 @@ public class LoginResp {
     private String roleCode;
     private String roleName;
     private List<String> permissions;
+    /** 关联人员清单ID（用于测评师编辑权限匹配） */
+    private Long staffId;
     /** 是否需要TOTP验证（true时前端跳转二次验证页） */
     private Boolean requireTotp;
     /** 是否首次登录（true时强制修改密码） */

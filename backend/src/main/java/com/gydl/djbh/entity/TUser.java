@@ -25,6 +25,9 @@ public class TUser {
 
     private Long roleId;
 
+    /** 关联人员清单ID（t_staff.id），用于测评师编辑权限匹配 */
+    private Long staffId;
+
     /** SM4加密存储 */
     private String phone;
 

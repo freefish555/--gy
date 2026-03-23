@@ -44,21 +44,51 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
 
     @Override
     public PageResult<Map<String, Object>> page(StaffQueryReq req) {
-        int offset = (req.getPage() - 1) * req.getPageSize();
-        // 兼容前端 realName 字段作为搜索关键词
-        String keyword = req.getKeyword();
-        if ((keyword == null || keyword.isEmpty()) && req.getRealName() != null && !req.getRealName().isEmpty()) {
-            keyword = req.getRealName();
+        // 获取姓名搜索词（realName字段，加密存储需Java层过滤）
+        String nameKeyword = req.getRealName();
+        if (nameKeyword == null || nameKeyword.isEmpty()) {
+            nameKeyword = req.getKeyword();
         }
-        List<TStaff> list = baseMapper.findPage(keyword, req.getRoleLevel(),
+        String department = req.getDepartment();
+
+        // 判断是否需要Java层姓名过滤（realName加密，SQL无法LIKE）
+        boolean hasNameFilter = nameKeyword != null && !nameKeyword.isEmpty();
+
+        if (hasNameFilter) {
+            // 获取全量数据（按部门、状态、职级过滤，department可SQL过滤）
+            List<TStaff> allList = baseMapper.findAllForFilter(department, req.getRoleLevel(), req.getStatus());
+            // Java层解密realName后过滤
+            final String nameKw = nameKeyword.toLowerCase().trim();
+            List<TStaff> filtered = new ArrayList<>();
+            for (TStaff s : allList) {
+                String decryptedName = decryptSafe(s.getRealName());
+                if (decryptedName != null && decryptedName.toLowerCase().contains(nameKw)) {
+                    filtered.add(s);
+                }
+            }
+            long total = filtered.size();
+            int offset = (req.getPage() - 1) * req.getPageSize();
+            int end = Math.min(offset + req.getPageSize(), filtered.size());
+            List<TStaff> pageList = offset < filtered.size() ? filtered.subList(offset, end) : new ArrayList<>();
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (TStaff s : pageList) { result.add(toMap(s)); }
+            return PageResult.of(total, req.getPage(), req.getPageSize(), result);
+        }
+
+        // 无姓名过滤：直接走SQL分页（department可SQL过滤）
+        int offset = (req.getPage() - 1) * req.getPageSize();
+        List<TStaff> list = baseMapper.findPage(department, req.getRoleLevel(),
                 req.getStatus(), offset, req.getPageSize());
-        long total = baseMapper.countPage(keyword, req.getRoleLevel(), req.getStatus());
+        long total = baseMapper.countPage(department, req.getRoleLevel(), req.getStatus());
 
         List<Map<String, Object>> result = new ArrayList<>();
-        for (TStaff s : list) {
-            result.add(toMap(s));
-        }
+        for (TStaff s : list) { result.add(toMap(s)); }
         return PageResult.of(total, req.getPage(), req.getPageSize(), result);
+    }
+
+    private String decryptSafe(String encrypted) {
+        if (encrypted == null || encrypted.isEmpty()) return "";
+        try { return sm4Util.decrypt(encrypted); } catch (Exception e) { return ""; }
     }
 
     @Override
@@ -159,14 +189,10 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
         // 导出全量匹配结果（不分页）
         req.setPage(1);
         req.setPageSize(10000);
-        int offset = 0;
-        // 兼容前端 realName 字段作为搜索关键词
-        String keyword = req.getKeyword();
-        if ((keyword == null || keyword.isEmpty()) && req.getRealName() != null && !req.getRealName().isEmpty()) {
-            keyword = req.getRealName();
-        }
-        List<TStaff> list = baseMapper.findPage(keyword, req.getRoleLevel(),
-                req.getStatus(), offset, 10000);
+        // 导出复用page()逻辑，获取全部符合条件的数据
+        PageResult<Map<String, Object>> pageResult = page(req);
+        // 将Map列表转为TStaff列表用于后续Excel写入（已解密）
+        List<Map<String, Object>> exportData = pageResult.getRecords();
 
         try (XSSFWorkbook wb = new XSSFWorkbook()) {
             Sheet sheet = wb.createSheet("人员清单");
@@ -187,18 +213,19 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
             }
             // 数据行
             int rowNum = 1;
-            for (TStaff s : list) {
+            for (Map<String, Object> s : exportData) {
                 Row row = sheet.createRow(rowNum++);
-                row.createCell(0).setCellValue(s.getStaffNo() != null ? s.getStaffNo() : "");
-                row.createCell(1).setCellValue(decrypt(s.getRealName()));
-                row.createCell(2).setCellValue(s.getDepartment() != null ? s.getDepartment() : "");
-                row.createCell(3).setCellValue(s.getPosition() != null ? s.getPosition() : "");
-                row.createCell(4).setCellValue(s.getRoleLevel() != null ? s.getRoleLevel() : "");
-                row.createCell(5).setCellValue(decrypt(s.getCertNo()));
-                row.createCell(6).setCellValue(s.getCertExpire() != null ? s.getCertExpire().toString() : "");
-                row.createCell(7).setCellValue(decrypt(s.getPhone()));
-                row.createCell(8).setCellValue(decrypt(s.getEmail()));
-                row.createCell(9).setCellValue(s.getStatus() != null ? s.getStatus() : 1);
+                row.createCell(0).setCellValue(s.get("staffNo") != null ? s.get("staffNo").toString() : "");
+                row.createCell(1).setCellValue(s.get("realName") != null ? s.get("realName").toString() : "");
+                row.createCell(2).setCellValue(s.get("department") != null ? s.get("department").toString() : "");
+                row.createCell(3).setCellValue(s.get("position") != null ? s.get("position").toString() : "");
+                row.createCell(4).setCellValue(s.get("roleLevel") != null ? s.get("roleLevel").toString() : "");
+                row.createCell(5).setCellValue(s.get("certNo") != null ? s.get("certNo").toString() : "");
+                row.createCell(6).setCellValue(s.get("certExpire") != null ? s.get("certExpire").toString() : "");
+                row.createCell(7).setCellValue(s.get("phone") != null ? s.get("phone").toString() : "");
+                row.createCell(8).setCellValue(s.get("email") != null ? s.get("email").toString() : "");
+                Object statusVal = s.get("status");
+                row.createCell(9).setCellValue(statusVal != null ? Integer.parseInt(statusVal.toString()) : 1);
             }
             String filename = URLEncoder.encode("人员清单.xlsx", StandardCharsets.UTF_8);
             response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
