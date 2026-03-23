@@ -1,7 +1,7 @@
 package com.gydl.djbh.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
@@ -14,13 +14,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Spring MVC 配置 - 强制所有响应使用 UTF-8 编码
+ * Spring MVC 配置 - 强制所有响应使用 UTF-8 编码，
+ * 使用 Spring Boot 自动配置的 ObjectMapper（含 JavaTimeModule）
  */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     /**
-     * 覆盖消息转换器，确保 JSON 响应使用 UTF-8
+     * 覆盖消息转换器，确保 JSON 响应使用 UTF-8，并保留 Spring Boot 的 ObjectMapper 配置
      */
     @Override
     public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
@@ -33,8 +37,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
         stringConverter.setSupportedMediaTypes(stringMediaTypes);
         converters.add(stringConverter);
 
-        // JSON converter - force UTF-8
-        MappingJackson2HttpMessageConverter jsonConverter = new MappingJackson2HttpMessageConverter();
+        // JSON converter - use auto-configured ObjectMapper (with JavaTimeModule, etc.) + force UTF-8
+        MappingJackson2HttpMessageConverter jsonConverter = new MappingJackson2HttpMessageConverter(objectMapper);
         List<MediaType> jsonMediaTypes = new ArrayList<>();
         jsonMediaTypes.add(new MediaType("application", "json", StandardCharsets.UTF_8));
         jsonMediaTypes.add(new MediaType("application", "*+json", StandardCharsets.UTF_8));

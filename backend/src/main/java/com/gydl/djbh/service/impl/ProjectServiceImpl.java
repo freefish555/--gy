@@ -84,7 +84,7 @@ public class ProjectServiceImpl implements ProjectService {
                     req.getProjectNo(), null, null,
                     req.getProjectManagerId(), req.getProjectLeaderId(),
                     req.getProjectTypeId(), req.getIndustryId(),
-                    req.getYearBelong(), 0, Integer.MAX_VALUE);
+                    req.getYearBelong(), req.getProjectRegion(), 0, Integer.MAX_VALUE);
 
             // Decrypt and filter
             List<TProject> filtered = new ArrayList<>();
@@ -154,11 +154,11 @@ public class ProjectServiceImpl implements ProjectService {
                 req.getProjectNo(), null, null, req.getProjectManagerId(),
                 req.getProjectLeaderId(),
                 req.getProjectTypeId(), req.getIndustryId(),
-                req.getYearBelong(), offset, req.getPageSize());
+                req.getYearBelong(), req.getProjectRegion(), offset, req.getPageSize());
         long total = projectMapper.countPage(
                 req.getProjectNo(), null, null, req.getProjectManagerId(),
                 req.getProjectLeaderId(),
-                req.getProjectTypeId(), req.getIndustryId(), req.getYearBelong());
+                req.getProjectTypeId(), req.getIndustryId(), req.getYearBelong(), req.getProjectRegion());
 
         List<ProjectDetailResp> result = new ArrayList<>();
         for (TProject p : list) {

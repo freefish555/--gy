@@ -46,6 +46,8 @@ public class ProjectQueryReq {
     private String actualMemberName;
     /** 项目负责人姓名（模糊，解密后匹配） */
     private String projectLeaderName;
+    /** 项目地区字典值（精确匹配） */
+    private String projectRegion;
     /** 排序字段 */
     private String sortField = "created_at";
     /** 排序方向 asc/desc */

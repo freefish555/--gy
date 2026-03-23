@@ -58,6 +58,11 @@
                 <el-option v-for="d in industryOptions" :key="d.id" :label="d.itemLabel" :value="d.id" />
               </el-select>
             </el-form-item>
+            <el-form-item label="项目地区">
+              <el-select v-model="queryForm.projectRegion" clearable placeholder="全部" style="width:130px">
+                <el-option v-for="d in regionOptions" :key="d.itemValue" :label="d.itemLabel" :value="d.itemValue" />
+              </el-select>
+            </el-form-item>
             <el-form-item label="签订日期">
               <el-date-picker v-model="dateRange" type="daterange" value-format="YYYY-MM-DD"
                 start-placeholder="开始日期" end-placeholder="结束日期" style="width:220px" />
@@ -146,8 +151,14 @@
           :show-overflow-tooltip="true"
         >
           <template #default="{ row }">
+            <!-- 项目名称：不折行+省略+tooltip -->
+            <template v-if="col.prop === 'projectName'">
+              <el-tooltip :content="row.projectName" placement="top" :disabled="!row.projectName" effect="dark">
+                <span class="text-ellipsis">{{ row.projectName || '-' }}</span>
+              </el-tooltip>
+            </template>
             <!-- 被测系统：显示系统名称合并 -->
-            <template v-if="col.prop === 'systemNameMerged'">
+            <template v-else-if="col.prop === 'systemNameMerged'">
               <el-tooltip :content="row.systemNameMerged" placement="top" :disabled="!row.systemNameMerged">
                 <span>{{ row.systemNameMerged || '-' }}</span>
               </el-tooltip>
@@ -360,6 +371,7 @@ const queryForm = reactive({
   projectManagerId: undefined as any,
   projectTypeId: undefined as any,
   industryId: undefined as any,
+  projectRegion: undefined as any,
   memberName: '',
   actualMemberName: '',
   projectLeaderName: '',
@@ -373,6 +385,7 @@ const tableRef = ref()
 const staffOptions = ref<any[]>([])
 const projectTypeOptions = ref<any[]>([])
 const industryOptions = ref<any[]>([])
+const regionOptions = ref<any[]>([])
 
 onMounted(() => {
   loadList()
@@ -397,14 +410,16 @@ async function loadList() {
 
 async function loadOptions() {
   try {
-    const [staffRes, typeRes, industryRes]: any[] = await Promise.all([
+    const [staffRes, typeRes, industryRes, regionRes]: any[] = await Promise.all([
       request.get('/staff/list'),
       request.get('/system/dict/PROJECT_TYPE/items'),
       request.get('/system/dict/INDUSTRY/items'),
+      request.get('/system/dict/PROJECT_REGION/items'),
     ])
     staffOptions.value = staffRes.data || []
     projectTypeOptions.value = typeRes.data || []
     industryOptions.value = industryRes.data || []
+    regionOptions.value = regionRes.data || []
   } catch {}
 }
 
@@ -420,6 +435,7 @@ function handleReset() {
     projectManagerId: undefined,
     projectTypeId: undefined,
     industryId: undefined,
+    projectRegion: undefined,
     memberName: '',
     actualMemberName: '',
     projectLeaderName: '',
@@ -607,4 +623,12 @@ async function handleFileChange(event: Event) {
   border-bottom: 1px dashed #f0f0f0;
 }
 .import-error-item:last-child { border-bottom: none; }
+.text-ellipsis {
+  display: inline-block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  vertical-align: middle;
+}
 </style>

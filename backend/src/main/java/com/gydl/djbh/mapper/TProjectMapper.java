@@ -29,6 +29,7 @@ public interface TProjectMapper extends BaseMapper<TProject> {
             "<if test='projectTypeId != null'>AND p.project_type_id = #{projectTypeId} </if>" +
             "<if test='industryId != null'>AND p.industry_id = #{industryId} </if>" +
             "<if test='yearBelong != null and yearBelong != \"\"'>AND p.year_belong = #{yearBelong} </if>" +
+            "<if test='projectRegion != null and projectRegion != \"\"'>AND p.project_region = #{projectRegion} </if>" +
             "ORDER BY p.created_at DESC " +
             "LIMIT #{offset}, #{pageSize}" +
             "</script>")
@@ -37,6 +38,7 @@ public interface TProjectMapper extends BaseMapper<TProject> {
                              @Param("projectLeaderId") Long projectLeaderId,
                              @Param("projectTypeId") Long projectTypeId, @Param("industryId") Long industryId,
                              @Param("yearBelong") String yearBelong,
+                             @Param("projectRegion") String projectRegion,
                              @Param("offset") int offset, @Param("pageSize") int pageSize);
 
     @Select("<script>" +
@@ -49,12 +51,14 @@ public interface TProjectMapper extends BaseMapper<TProject> {
             "<if test='projectTypeId != null'>AND p.project_type_id = #{projectTypeId} </if>" +
             "<if test='industryId != null'>AND p.industry_id = #{industryId} </if>" +
             "<if test='yearBelong != null and yearBelong != \"\"'>AND p.year_belong = #{yearBelong} </if>" +
+            "<if test='projectRegion != null and projectRegion != \"\"'>AND p.project_region = #{projectRegion} </if>" +
             "</script>")
     long countPage(@Param("projectNo") String projectNo, @Param("projectName") String projectName,
                     @Param("customerName") String customerName, @Param("projectManagerId") Long projectManagerId,
                     @Param("projectLeaderId") Long projectLeaderId,
                     @Param("projectTypeId") Long projectTypeId, @Param("industryId") Long industryId,
-                    @Param("yearBelong") String yearBelong);
+                    @Param("yearBelong") String yearBelong,
+                    @Param("projectRegion") String projectRegion);
 
     @Select("SELECT p.*, pm.real_name as project_manager_name, pl.real_name as project_leader_name, " +
             "dt.item_label as project_type_name, di.item_label as industry_name " +
