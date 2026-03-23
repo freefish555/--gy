@@ -26,6 +26,7 @@ public class TUser {
     private Long roleId;
 
     /** 关联人员清单ID（t_staff.id），用于测评师编辑权限匹配 */
+    @TableField(value = "staff_id", updateStrategy = FieldStrategy.IGNORED)
     private Long staffId;
 
     /** SM4加密存储 */

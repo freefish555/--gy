@@ -75,11 +75,13 @@ public class StaffServiceImpl extends ServiceImpl<TStaffMapper, TStaff> implemen
             return PageResult.of(total, req.getPage(), req.getPageSize(), result);
         }
 
-        // 无姓名过滤：直接走SQL分页（department可SQL过滤）
+        // 无姓名过滤：直接走SQL分页（keyword搜索工号，department可SQL过滤）
         int offset = (req.getPage() - 1) * req.getPageSize();
-        List<TStaff> list = baseMapper.findPage(department, req.getRoleLevel(),
+        // keyword用于工号模糊搜索（非姓名），department单独过滤
+        String keyword = req.getKeyword();
+        List<TStaff> list = baseMapper.findPage(keyword, department, req.getRoleLevel(),
                 req.getStatus(), offset, req.getPageSize());
-        long total = baseMapper.countPage(department, req.getRoleLevel(), req.getStatus());
+        long total = baseMapper.countPage(keyword, department, req.getRoleLevel(), req.getStatus());
 
         List<Map<String, Object>> result = new ArrayList<>();
         for (TStaff s : list) { result.add(toMap(s)); }
